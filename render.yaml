@@ -1,0 +1,36 @@
+# Render deploy config. Import this repo on Render and it will set up
+# the web service + managed Postgres automatically.
+services:
+  - type: web
+    name: karibu-backend
+    runtime: node
+    plan: starter
+    buildCommand: npm install && npm run migrate
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: karibu-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: GROQ_API_KEY
+        sync: false                    # set manually in Render dashboard
+      - key: GROQ_LLM_MODEL
+        value: llama-3.3-70b-versatile
+      - key: GROQ_STT_MODEL
+        value: whisper-large-v3
+      - key: ELEVENLABS_API_KEY
+        sync: false                    # set manually in Render dashboard
+      - key: ELEVENLABS_DEFAULT_VOICE_ID
+        value: 21m00Tcm4TlvDq8ikWAM
+      - key: ALLOWED_ORIGINS
+        sync: false                    # set to your production frontend domain
+
+databases:
+  - name: karibu-db
+    plan: starter
+    databaseName: karibu
+    user: karibu

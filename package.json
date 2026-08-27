@@ -1,0 +1,24 @@
+{
+  "name": "karibu-backend",
+  "version": "0.1.0",
+  "description": "AI concierge backend — translating, tiered guest messaging for independent hotels",
+  "main": "src/server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "migrate": "node src/db/migrate.js"
+  },
+  "engines": { "node": ">=20" },
+  "dependencies": {
+    "express": "^4.21.1",
+    "cors": "^2.8.5",
+    "pg": "^8.13.1",
+    "bcrypt": "^5.1.1",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^1.4.5-lts.1",
+    "qrcode": "^1.5.4",
+    "dotenv": "^16.4.5",
+    "nanoid": "^3.3.7"
+  }
+}
