@@ -2,7 +2,7 @@
 // which increments usage BEFORE any LLM/translation/STT/TTS spend happens.
 
 const PLAN_LIMITS = {
-  free: { messagesPerMonth: 150, voice: false, languages: 1, llmModel: 'openai/gpt-oss-20b' },
+  free:     { messagesPerMonth: 150,      voice: false, languages: 1,       llmModel: 'llama-3.1-8b-instant' },
   standard: { messagesPerMonth: Infinity, voice: false, languages: Infinity, llmModel: null },
   premium:  { messagesPerMonth: Infinity, voice: true,  languages: Infinity, llmModel: null },
   trial:    { messagesPerMonth: Infinity, voice: true,  languages: Infinity, llmModel: null, trialDays: 7 },

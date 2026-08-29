@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>You're live — Ezicon</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #fdfefe;
+    --bg-raised: #e7f2f7;
+    --bg-card: #ffffff;
+    --border: rgba(10,46,74,0.1);
+    --border-strong: rgba(10,46,74,0.2);
+    --text: #000000;
+    --text-dim: rgba(10,46,74,0.7);
+    --text-faint: rgba(10,46,74,0.45);
+    --navy: #0a2e4a;
+    --teal: #19748a;
+    --mint: #a6f5c0;
+    --mint-deep: #5fc48a;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
+  body { background: var(--bg); color: var(--text); line-height: 1.6; }
+
+  .wrap { max-width: 720px; margin: 60px auto; padding: 0 24px 80px; }
+  .success-badge {
+    display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px;
+    background: var(--mint); color: var(--navy); border-radius: 100px;
+    font-size: 13px; font-weight: 600; margin-bottom: 20px;
+  }
+  h1 { font-size: 32px; font-weight: 600; letter-spacing: -0.015em; margin-bottom: 10px; }
+  .subtitle { font-size: 16px; color: var(--text-dim); margin-bottom: 40px; }
+
+  .card {
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px;
+    padding: 24px; margin-bottom: 16px;
+  }
+  .card h2 {
+    font-size: 15px; font-weight: 600; margin-bottom: 6px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .card h2 .num {
+    width: 24px; height: 24px; border-radius: 50%; background: var(--navy);
+    color: #fff; font-size: 12px; display: flex; align-items: center; justify-content: center;
+  }
+  .card p { font-size: 14px; color: var(--text-dim); margin-bottom: 16px; }
+
+  .code-block {
+    background: var(--navy); color: #a6f5c0; padding: 14px 16px;
+    border-radius: 10px; font-family: 'Menlo', 'Consolas', monospace;
+    font-size: 12px; overflow-x: auto; white-space: nowrap;
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  }
+  .code-block code { flex: 1; overflow-x: auto; }
+  .copy-btn {
+    background: rgba(166,245,192,0.15); color: #a6f5c0; border: none;
+    padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px;
+    font-family: 'Inter', sans-serif; font-weight: 500; flex-shrink: 0;
+  }
+  .copy-btn:hover { background: rgba(166,245,192,0.25); }
+  .copy-btn.copied { background: var(--mint); color: var(--navy); }
+
+  .url-block {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--bg-raised); padding: 12px 16px; border-radius: 10px;
+  }
+  .url-block a { flex: 1; color: var(--teal); text-decoration: none; font-size: 14px; word-break: break-all; }
+  .url-block a:hover { text-decoration: underline; }
+
+  .qr-wrap { text-align: center; padding: 20px 0; }
+  .qr-wrap img { max-width: 220px; background: #fff; padding: 10px; border-radius: 12px; }
+
+  .next-steps {
+    background: var(--bg-raised); padding: 20px 24px; border-radius: 12px;
+    margin-top: 24px;
+  }
+  .next-steps h3 { font-size: 14px; font-weight: 600; margin-bottom: 10px; color: var(--navy); }
+  .next-steps ul { list-style: none; padding: 0; }
+  .next-steps li { font-size: 13.5px; color: var(--text-dim); padding: 4px 0; }
+  .next-steps li::before { content: '→ '; color: var(--teal); font-weight: 700; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <span class="success-badge">✓ Your concierge is live</span>
+  <h1 id="welcomeTitle">Welcome to Ezicon</h1>
+  <p class="subtitle">Your AI concierge is running. Choose how you'd like guests to reach it.</p>
+
+  <div class="card">
+    <h2><span class="num">1</span>Add to your website</h2>
+    <p>Copy this one line into your site's HTML — anywhere before <code>&lt;/body&gt;</code>. Works on WordPress, Wix, Squarespace, or any hand-built site.</p>
+    <div class="code-block">
+      <code id="embedSnippet">Loading...</code>
+      <button class="copy-btn" onclick="copyText('embedSnippet', this)">Copy</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2><span class="num">2</span>Share the link — no website needed</h2>
+    <p>Add this to your Instagram bio, Google Business Profile, or in guest confirmation emails.</p>
+    <div class="url-block">
+      <a id="chatUrl" href="#" target="_blank">Loading...</a>
+      <button class="copy-btn" onclick="copyText('chatUrl', this)">Copy</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2><span class="num">3</span>Print a QR code</h2>
+    <p>Put it at the front desk, in rooms, on printed confirmations. Guests scan and chat.</p>
+    <div class="qr-wrap">
+      <img id="qrImage" alt="QR code for your concierge">
+    </div>
+  </div>
+
+  <div class="next-steps">
+    <h3>What's next</h3>
+    <ul>
+      <li>Add your FAQ answers (checkout time, wifi, breakfast hours)</li>
+      <li>Add your partnered tour operators</li>
+      <li>Set up your staff dashboard to approve replies</li>
+    </ul>
+    <p style="font-size: 12.5px; margin-top: 12px; color: var(--text-faint); font-style: italic;">
+      Dashboard setup is coming next. For now, your concierge answers routine questions and escalates the rest automatically.
+    </p>
+  </div>
+</div>
+
+<script>
+  // Pull the credentials saved during signup
+  const hotelId = localStorage.getItem('ezicon_hotel_id');
+  const embedSnippet = localStorage.getItem('ezicon_embed_snippet');
+  const chatUrl = localStorage.getItem('ezicon_chat_url');
+  const API_BASE = 'https://eazicon.onrender.com';
+
+  if (!hotelId) {
+    // Direct visit without signup — send them to signup
+    window.location.href = 'signup.html';
+  } else {
+    document.getElementById('embedSnippet').textContent = embedSnippet;
+    // The backend currently returns http:// URLs due to a Render proxy quirk — fix client-side
+    const httpsChatUrl = chatUrl.replace(/^http:/, 'https:');
+    const chatLink = document.getElementById('chatUrl');
+    chatLink.textContent = httpsChatUrl;
+    chatLink.href = httpsChatUrl;
+    // QR code endpoint returns a PNG directly
+    document.getElementById('qrImage').src = `${API_BASE}/qr/${hotelId}`;
+  }
+
+  async function copyText(elementId, btn) {
+    const text = document.getElementById(elementId).textContent;
+    try {
+      await navigator.clipboard.writeText(text);
+      const originalText = btn.textContent;
+      btn.textContent = 'Copied!';
+      btn.classList.add('copied');
+      setTimeout(() => {
+        btn.textContent = originalText;
+        btn.classList.remove('copied');
+      }, 1500);
+    } catch (e) {
+      alert('Copy failed — please select and copy manually');
+    }
+  }
+</script>
+
+</body>
+</html>
