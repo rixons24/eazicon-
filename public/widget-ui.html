@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Concierge</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #ffffff;
+    --bg-raised: #f2f6f8;
+    --border: rgba(10,46,74,0.08);
+    --text: #0a2e4a;
+    --text-dim: rgba(10,46,74,0.65);
+    --text-faint: rgba(10,46,74,0.42);
+    --navy: #0a2e4a;
+    --teal: #19748a;
+    --mint: #a6f5c0;
+    --mint-deep: #5fc48a;
+    --danger: #b0392f;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; color: var(--text); background: var(--bg); }
+  body { display: flex; flex-direction: column; overflow: hidden; }
+
+  header {
+    padding: 14px 16px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+  }
+  header .logo {
+    width: 32px; height: 32px; border-radius: 8px; background: var(--navy);
+    display: flex; align-items: center; justify-content: center; overflow: hidden;
+    flex-shrink: 0;
+  }
+  header .logo img { width: 100%; height: 100%; object-fit: cover; }
+  header .logo-fallback { color: var(--mint); font-weight: 700; font-size: 14px; }
+  header .hotel-info { flex: 1; min-width: 0; }
+  header .hotel-name { font-size: 14.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  header .hotel-status { font-size: 11.5px; color: var(--mint-deep); display: flex; align-items: center; gap: 4px; }
+  header .hotel-status::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--mint-deep); }
+
+  .messages {
+    flex: 1; overflow-y: auto; padding: 16px;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .msg { max-width: 85%; animation: msgIn 0.3s ease; }
+  .msg.guest { align-self: flex-end; }
+  .msg.agent { align-self: flex-start; }
+  .msg-bubble { font-size: 14px; padding: 10px 14px; border-radius: 14px; line-height: 1.45; word-wrap: break-word; }
+  .msg.guest .msg-bubble { background: var(--navy); color: #fff; border-bottom-right-radius: 4px; }
+  .msg.agent .msg-bubble { background: var(--bg-raised); color: var(--text); border-bottom-left-radius: 4px; }
+  .msg-tier {
+    font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 5px;
+    margin-bottom: 3px; letter-spacing: 0.02em; text-transform: uppercase; display: inline-block;
+  }
+  .msg-tier.auto { background: rgba(25,116,138,0.14); color: var(--teal); }
+  .msg-tier.needs_approval { background: rgba(166,245,192,0.4); color: var(--navy); }
+  .msg-tier.urgent { background: rgba(176,57,47,0.14); color: var(--danger); }
+
+  .typing {
+    display: flex; gap: 4px; padding: 12px 14px; background: var(--bg-raised);
+    border-radius: 14px; border-bottom-left-radius: 4px; align-self: flex-start; width: fit-content;
+  }
+  .typing span {
+    width: 6px; height: 6px; border-radius: 50%; background: var(--text-faint);
+    animation: typingDot 1.2s infinite;
+  }
+  .typing span:nth-child(2) { animation-delay: 0.15s; }
+  .typing span:nth-child(3) { animation-delay: 0.3s; }
+  @keyframes typingDot { 0%, 60%, 100% { opacity: 0.3; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-3px); } }
+  @keyframes msgIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+  .input-row {
+    display: flex; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--border);
+    background: var(--bg); flex-shrink: 0;
+  }
+  .input-row input {
+    flex: 1; border: 1px solid var(--border); border-radius: 22px;
+    padding: 10px 16px; font-size: 14px; font-family: inherit; color: var(--text);
+    background: var(--bg-raised); outline: none;
+    transition: border-color 0.2s ease;
+  }
+  .input-row input:focus { border-color: var(--teal); background: var(--bg); }
+  .input-row input::placeholder { color: var(--text-faint); }
+  .send-btn {
+    width: 42px; height: 42px; border-radius: 50%; background: var(--navy);
+    color: #fff; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: background 0.2s ease; flex-shrink: 0;
+  }
+  .send-btn:hover { background: var(--teal); }
+  .send-btn:disabled { background: var(--text-faint); cursor: not-allowed; }
+  .send-btn svg { width: 18px; height: 18px; stroke: #fff; stroke-width: 2.5; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+
+  .powered {
+    text-align: center; padding: 6px; font-size: 10px; color: var(--text-faint);
+    flex-shrink: 0; background: var(--bg); border-top: 1px solid var(--border);
+  }
+  .powered a { color: inherit; text-decoration: none; }
+  .powered a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo" id="brandLogo"><span class="logo-fallback" id="brandInitial">·</span></div>
+  <div class="hotel-info">
+    <div class="hotel-name" id="hotelName">Concierge</div>
+    <div class="hotel-status">Ready to help</div>
+  </div>
+</header>
+
+<div class="messages" id="messages"></div>
+
+<div class="input-row">
+  <input type="text" id="input" placeholder="Type in any language..." autofocus>
+  <button class="send-btn" id="sendBtn" aria-label="Send">
+    <svg viewBox="0 0 24 24"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
+  </button>
+</div>
+
+<div class="powered">Powered by <a href="https://eazicon.onrender.com" target="_blank">Ezicon</a></div>
+
+<script>
+  // ---- Bootstrap: parse hotelId from URL, load branding, restore session ----
+  const params = new URLSearchParams(location.search);
+  const hotelId = params.get('hotelId');
+  if (!hotelId) {
+    document.body.innerHTML = '<p style="padding:24px;text-align:center;color:#b0392f;font-family:sans-serif;">Missing hotelId — check your embed snippet.</p>';
+    throw new Error('missing hotelId');
+  }
+
+  // Same-origin API base — we're served from the backend so relative paths work
+  const API_BASE = location.origin;
+  // Session persists across page loads via localStorage, scoped per hotel so a
+  // guest visiting two different properties gets separate conversations.
+  const SESSION_KEY = `ezicon_session_${hotelId}`;
+  let sessionId = localStorage.getItem(SESSION_KEY);
+
+  const messagesEl = document.getElementById('messages');
+  const inputEl = document.getElementById('input');
+  const sendBtn = document.getElementById('sendBtn');
+
+  // ---- Fetch branding (name, logo, tagline) so widget looks like the hotel ----
+  fetch(`${API_BASE}/branding?hotelId=${encodeURIComponent(hotelId)}`)
+    .then(r => r.ok ? r.json() : Promise.reject())
+    .then(brand => {
+      if (brand.name) {
+        document.getElementById('hotelName').textContent = brand.name;
+        document.title = brand.name + ' — Concierge';
+        document.getElementById('brandInitial').textContent = brand.name.charAt(0).toUpperCase();
+      }
+      if (brand.logoUrl) {
+        const logoContainer = document.getElementById('brandLogo');
+        logoContainer.innerHTML = `<img src="${brand.logoUrl}" alt="${brand.name || 'Logo'}">`;
+      }
+      if (brand.primaryColor) {
+        document.documentElement.style.setProperty('--navy', brand.primaryColor);
+      }
+      // Show greeting once branding is loaded so it uses the real hotel name
+      addAgentMessage(`Hi! I'm the ${brand.name || 'concierge'} assistant. Ask me anything — in any language.`, null);
+    })
+    .catch(() => {
+      addAgentMessage("Hi! I'm the concierge. Ask me anything — in any language.", null);
+    });
+
+  // ---- Message rendering ----
+  const tierLabel = { auto: 'Auto answered', needs_approval: 'Draft for staff', urgent: 'Urgent, escalated', limit_reached: 'Limit reached' };
+
+  function addGuestMessage(text) {
+    const el = document.createElement('div');
+    el.className = 'msg guest';
+    el.innerHTML = `<div class="msg-bubble"></div>`;
+    el.querySelector('.msg-bubble').textContent = text;
+    messagesEl.appendChild(el);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  function addAgentMessage(text, tier) {
+    const el = document.createElement('div');
+    el.className = 'msg agent';
+    const tierMarkup = tier ? `<span class="msg-tier ${tier}">${tierLabel[tier] || tier}</span><br>` : '';
+    el.innerHTML = `${tierMarkup}<div class="msg-bubble"></div>`;
+    el.querySelector('.msg-bubble').textContent = text;
+    messagesEl.appendChild(el);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  function showTyping() {
+    const el = document.createElement('div');
+    el.className = 'typing'; el.id = 'typing';
+    el.innerHTML = '<span></span><span></span><span></span>';
+    messagesEl.appendChild(el);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+  function hideTyping() {
+    const t = document.getElementById('typing');
+    if (t) t.remove();
+  }
+
+  // ---- Send ----
+  async function handleSend() {
+    const text = inputEl.value.trim();
+    if (!text) return;
+    addGuestMessage(text);
+    inputEl.value = '';
+    sendBtn.disabled = true;
+    showTyping();
+
+    try {
+      const res = await fetch(`${API_BASE}/message`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          hotelId,
+          guestMessage: text,
+          sessionId, // null on first message; backend issues one
+        }),
+      });
+      hideTyping();
+      if (!res.ok) {
+        addAgentMessage("Sorry, having trouble reaching the concierge right now. Please try again in a moment.", 'urgent');
+        return;
+      }
+      const data = await res.json();
+      if (data.sessionId && data.sessionId !== sessionId) {
+        sessionId = data.sessionId;
+        localStorage.setItem(SESSION_KEY, sessionId);
+      }
+      // Widget shows the guest-facing reply directly (already in their language
+      // from the backend). No English/translation split needed here — that
+      // split is a marketing-demo feature on the landing page.
+      addAgentMessage(data.guestReply, data.tier);
+    } catch (err) {
+      hideTyping();
+      addAgentMessage("Couldn't reach the concierge — check your connection.", 'urgent');
+    } finally {
+      sendBtn.disabled = false;
+      inputEl.focus();
+    }
+  }
+
+  sendBtn.addEventListener('click', handleSend);
+  inputEl.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } });
+</script>
+
+</body>
+</html>

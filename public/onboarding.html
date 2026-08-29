@@ -91,7 +91,7 @@
 
   <div class="card">
     <h2><span class="num">1</span>Add to your website</h2>
-    <p>Copy this one line into your site's HTML — anywhere before <code>&lt;/body&gt;</code>. Works on WordPress, Wix, Squarespace, or any hand-built site.</p>
+    <p>Copy this one line into your site's HTML — anywhere before <code>&lt;/body&gt;</code>. Works on WordPress, Wix, Squarespace, or any hand-built site. <strong>You can see your widget running in the bottom-right of this page right now.</strong></p>
     <div class="code-block">
       <code id="embedSnippet">Loading...</code>
       <button class="copy-btn" onclick="copyText('embedSnippet', this)">Copy</button>
@@ -140,13 +140,29 @@
     window.location.href = 'signup.html';
   } else {
     document.getElementById('embedSnippet').textContent = embedSnippet;
-    // The backend currently returns http:// URLs due to a Render proxy quirk — fix client-side
     const httpsChatUrl = chatUrl.replace(/^http:/, 'https:');
     const chatLink = document.getElementById('chatUrl');
     chatLink.textContent = httpsChatUrl;
     chatLink.href = httpsChatUrl;
-    // QR code endpoint returns a PNG directly
-    document.getElementById('qrImage').src = `${API_BASE}/qr/${hotelId}`;
+    // QR code endpoint returns a PNG directly. Handle load failure by showing
+    // a text fallback rather than a broken image icon.
+    const qrImg = document.getElementById('qrImage');
+    qrImg.src = `${API_BASE}/qr/${encodeURIComponent(hotelId)}`;
+    qrImg.onerror = () => {
+      qrImg.style.display = 'none';
+      const fallback = document.createElement('p');
+      fallback.style.cssText = 'font-size: 13px; color: var(--text-faint); font-style: italic;';
+      fallback.textContent = 'QR code temporarily unavailable — share the link above instead.';
+      qrImg.parentNode.appendChild(fallback);
+    };
+
+    // Live-load their actual widget on this page so they can play with it
+    // right now, before touching their real website.
+    const widgetScript = document.createElement('script');
+    widgetScript.src = `${API_BASE}/widget.js`;
+    widgetScript.setAttribute('data-hotel-id', hotelId);
+    widgetScript.async = true;
+    document.body.appendChild(widgetScript);
   }
 
   async function copyText(elementId, btn) {

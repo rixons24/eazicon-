@@ -50,7 +50,8 @@ app.get('/', (req, res) => res.sendFile(path.join(publicDir, 'index-v2.html')));
 app.get('/signup', (req, res) => res.sendFile(path.join(publicDir, 'signup.html')));
 app.get('/contact', (req, res) => res.sendFile(path.join(publicDir, 'contact.html')));
 app.get('/onboarding', (req, res) => res.sendFile(path.join(publicDir, 'onboarding.html')));
-app.use(express.static(publicDir)); // fallback for any other assets (images, css, etc.)
+app.get('/widget-ui', (req, res) => res.sendFile(path.join(publicDir, 'widget-ui.html')));
+app.use(express.static(publicDir)); // fallback for any other assets (widget.js, images, css, etc.)
 
 // 404 handler
 app.use((req, res) => res.status(404).json({ error: 'not found', path: req.path }));

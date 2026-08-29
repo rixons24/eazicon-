@@ -72,8 +72,18 @@ async function resolveTieredReply({ hotel, conversationId, guestMessage, guestLa
     return {
       tier: 'limit_reached',
       guestReplyText: TIER_ACK.limit_reached,
+      guestReplyEnglish: TIER_ACK.limit_reached,
+      guestMessageEnglish: null,
       detectedLanguage: guestLanguage || 'en',
     };
+  }
+
+  // Best-effort: translate the guest's own message to English for the staff-view
+  // caption in the demo. Non-blocking — if translation fails, we just skip the
+  // caption rather than fail the whole request.
+  async function guestMessageInEnglish(lang) {
+    if (!lang || lang === 'en') return null;
+    try { return await groq.translate(guestMessage, 'en'); } catch { return null; }
   }
 
   // 2. Urgent escalation (English keyword regex — the LLM path also catches non-English urgent)
@@ -83,7 +93,14 @@ async function resolveTieredReply({ hotel, conversationId, guestMessage, guestLa
       tier: 'urgent', guestReply: TIER_ACK.urgent,
     });
     await tickUsage(query, hotel.id);
-    return { tier: 'urgent', guestReplyText: TIER_ACK.urgent, detectedLanguage: guestLanguage || 'en' };
+    const gmEn = await guestMessageInEnglish(guestLanguage);
+    return {
+      tier: 'urgent',
+      guestReplyText: TIER_ACK.urgent,
+      guestReplyEnglish: TIER_ACK.urgent,
+      guestMessageEnglish: gmEn,
+      detectedLanguage: guestLanguage || 'en',
+    };
   }
 
   // 3. Cheap KB keyword lookup
@@ -97,7 +114,14 @@ async function resolveTieredReply({ hotel, conversationId, guestMessage, guestLa
       tier: 'auto', guestReply: translated,
     });
     await tickUsage(query, hotel.id);
-    return { tier: 'auto', guestReplyText: translated, detectedLanguage: targetLang };
+    const gmEn = await guestMessageInEnglish(guestLanguage);
+    return {
+      tier: 'auto',
+      guestReplyText: translated,
+      guestReplyEnglish: kbHit.answer,
+      guestMessageEnglish: gmEn,
+      detectedLanguage: targetLang,
+    };
   }
 
   // 4. LLM classification + drafting (the expensive path)
@@ -110,6 +134,7 @@ async function resolveTieredReply({ hotel, conversationId, guestMessage, guestLa
   });
 
   const finalLang = guestLanguage || result.detectedLanguage || 'en';
+  const gmEn = await guestMessageInEnglish(finalLang);
 
   if (result.tier === 'urgent') {
     await persistMessages({
@@ -117,7 +142,13 @@ async function resolveTieredReply({ hotel, conversationId, guestMessage, guestLa
       tier: 'urgent', guestReply: TIER_ACK.urgent,
     });
     await tickUsage(query, hotel.id);
-    return { tier: 'urgent', guestReplyText: TIER_ACK.urgent, detectedLanguage: finalLang };
+    return {
+      tier: 'urgent',
+      guestReplyText: TIER_ACK.urgent,
+      guestReplyEnglish: TIER_ACK.urgent,
+      guestMessageEnglish: gmEn,
+      detectedLanguage: finalLang,
+    };
   }
 
   if (result.tier === 'auto') {
@@ -127,7 +158,13 @@ async function resolveTieredReply({ hotel, conversationId, guestMessage, guestLa
       tier: 'auto', guestReply: translated,
     });
     await tickUsage(query, hotel.id);
-    return { tier: 'auto', guestReplyText: translated, detectedLanguage: finalLang };
+    return {
+      tier: 'auto',
+      guestReplyText: translated,
+      guestReplyEnglish: result.draft,
+      guestMessageEnglish: gmEn,
+      detectedLanguage: finalLang,
+    };
   }
 
   // needs_approval: guest gets a holding message, staff gets the draft in their queue
@@ -140,6 +177,8 @@ async function resolveTieredReply({ hotel, conversationId, guestMessage, guestLa
   return {
     tier: 'needs_approval',
     guestReplyText: ack,
+    guestReplyEnglish: TIER_ACK.needs_approval,
+    guestMessageEnglish: gmEn,
     staffDraft: result.draft,
     detectedLanguage: finalLang,
   };

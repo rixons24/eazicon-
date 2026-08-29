@@ -46,6 +46,8 @@ router.post('/message', loadHotel, async (req, res) => {
       conversationId,
       tier: result.tier,
       guestReply: result.guestReplyText,
+      guestReplyEnglish: result.guestReplyEnglish,
+      guestMessageEnglish: result.guestMessageEnglish,
       detectedLanguage: result.detectedLanguage,
     });
   } catch (e) {

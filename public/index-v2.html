@@ -925,15 +925,50 @@
     ja: { placeholder: 'ゲストとして入力... (例: Wi-Fiパスワード)' },
     en: { placeholder: 'Type as a guest... (e.g. wifi password)' },
   };
-  // Agent greeting is the property's own message, shown to the guest in English —
-  // it's what a guest sees when they open the concierge. They then type back in
-  // whatever language they're comfortable with, which the concierge translates
-  // for staff (shown as the "→" caption under the guest's bubble).
-  const agentGreeting = "Hi! I'm the concierge. Ask me anything about your stay — in any language.";
+  // Opening exchange shown when the demo loads or when the visitor switches
+  // language. Structure: guest question in their language (with English
+  // translation caption for staff), then a canned agent reply in English
+  // (with translation caption back to the guest's language). This immediately
+  // shows both directions of the translation flow before the visitor types.
+  const openingExchange = {
+    pl: {
+      guestText: 'Cześć, o której jest śniadanie?',
+      guestEn:   'Hi, what time is breakfast?',
+      agentEn:   'Good morning! Breakfast is served from 7:00 to 10:30 at the rooftop restaurant.',
+      agentTr:   'Dzień dobry! Śniadanie jest podawane od 7:00 do 10:30 w restauracji na dachu.',
+    },
+    zh: {
+      guestText: '你好，早餐几点开始？',
+      guestEn:   'Hi, what time does breakfast start?',
+      agentEn:   'Good morning! Breakfast is served from 7:00 to 10:30 at the rooftop restaurant.',
+      agentTr:   '早上好！早餐时间是早上7点到10点半，在顶楼餐厅供应。',
+    },
+    ar: {
+      guestText: 'مرحبًا، متى يُقدَّم الإفطار؟',
+      guestEn:   'Hi, what time is breakfast served?',
+      agentEn:   'Good morning! Breakfast is served from 7:00 to 10:30 at the rooftop restaurant.',
+      agentTr:   'صباح الخير! يُقدَّم الإفطار من الساعة 7:00 إلى 10:30 في مطعم السطح.',
+    },
+    de: {
+      guestText: 'Hallo, wann gibt es Frühstück?',
+      guestEn:   'Hi, what time is breakfast?',
+      agentEn:   'Good morning! Breakfast is served from 7:00 to 10:30 at the rooftop restaurant.',
+      agentTr:   'Guten Morgen! Frühstück wird von 7:00 bis 10:30 Uhr im Dachrestaurant serviert.',
+    },
+    ja: {
+      guestText: 'こんにちは、朝食は何時からですか？',
+      guestEn:   'Hi, what time does breakfast start?',
+      agentEn:   'Good morning! Breakfast is served from 7:00 to 10:30 at the rooftop restaurant.',
+      agentTr:   'おはようございます！朝食は7:00から10:30まで屋上レストランでご用意しております。',
+    },
+    en: {
+      guestText: 'Hi, what time is breakfast?',
+      guestEn:   null, // no translation needed when guest is in English
+      agentEn:   'Good morning! Breakfast is served from 7:00 to 10:30 at the rooftop restaurant.',
+      agentTr:   null,
+    },
+  };
 
-  // Intent map: keywords in any of the demo languages → an English answer + tier.
-  // In production this is handled by real translation + retrieval; here it's a
-  // keyword lookup that covers the demo scenarios most visitors will try.
   const tierLabel = { auto: 'Auto answered', needs_approval: 'Draft for staff', urgent: 'Urgent, escalated', limit_reached: 'Limit reached' };
 
   const messagesEl = document.getElementById('demoMessages');
@@ -946,25 +981,30 @@
   function resetChat() {
     messagesEl.innerHTML = '';
     inputEl.placeholder = uiCopy[currentLang].placeholder;
-    addAgentMessage(agentGreeting, null);
+    // Play the opening exchange: guest bubble first, then agent reply,
+    // with the tier badge on the agent reply since it's the auto-answered case.
+    const ex = openingExchange[currentLang];
+    addGuestMessage(ex.guestText, ex.guestEn);
+    addAgentMessage(ex.agentEn, 'auto', ex.agentTr);
   }
 
-  function addGuestMessage(text) {
+  function addGuestMessage(text, translationEn) {
     const el = document.createElement('div');
     el.className = 'demo-msg guest';
-    // Real translation happens server-side and comes back on the agent's reply;
-    // we no longer render a client-side "→ English" caption for guest bubbles
-    // because it would be a canned guess, not the real detected translation.
-    el.innerHTML = `<div class="demo-msg-bubble">${escapeHtml(text)}</div>`;
+    const translationLine = translationEn ? `<div class="translation">→ ${escapeHtml(translationEn)}</div>` : '';
+    el.innerHTML = `<div class="demo-msg-bubble">${escapeHtml(text)}</div>${translationLine}`;
     messagesEl.appendChild(el);
     messagesEl.scrollTop = messagesEl.scrollHeight;
   }
 
-  function addAgentMessage(text, tier, translationEn) {
+  function addAgentMessage(text, tier, translationForGuest) {
     const el = document.createElement('div');
     el.className = 'demo-msg agent';
     const tierBadge = tier ? `<span class="demo-msg-tier ${tier}">${tierLabel[tier]}</span>` : '';
-    const translationLine = translationEn ? `<div class="translation">→ ${escapeHtml(translationEn)}</div>` : '';
+    // For agent replies, the translation caption is the reply rendered in the
+    // guest's language — that's what the guest actually reads while the English
+    // is what the staff wrote / would see.
+    const translationLine = translationForGuest ? `<div class="translation">→ ${escapeHtml(translationForGuest)}</div>` : '';
     el.innerHTML = `${tierBadge}<div class="demo-msg-bubble">${escapeHtml(text)}</div>${translationLine}`;
     messagesEl.appendChild(el);
     messagesEl.scrollTop = messagesEl.scrollHeight;
@@ -999,7 +1039,9 @@
   async function handleSend() {
     const text = inputEl.value.trim();
     if (!text) return;
-    addGuestMessage(text);
+    // Guest bubble: their language on top, English caption underneath (translation
+    // populated from the backend response after the request completes).
+    addGuestMessage(text, null); // caption filled in server-side response below
     inputEl.value = '';
     if (hintEl) hintEl.style.opacity = '0.35';
     addTypingIndicator();
@@ -1012,7 +1054,7 @@
           hotelId: DEMO_HOTEL_ID,
           guestMessage: text,
           guestLanguage: currentLang === 'en' ? null : currentLang,
-          sessionId: demoSessionId, // null on first message; backend issues one
+          sessionId: demoSessionId,
         }),
       });
       removeTypingIndicator();
@@ -1022,8 +1064,25 @@
         return;
       }
       const data = await res.json();
-      demoSessionId = data.sessionId; // reuse for follow-up messages in this thread
-      addAgentMessage(data.guestReply, data.tier);
+      demoSessionId = data.sessionId;
+
+      // Backfill the English caption on the last guest bubble now that translation returned
+      if (data.guestMessageEnglish) {
+        const lastGuest = messagesEl.querySelector('.demo-msg.guest:last-of-type');
+        if (lastGuest && !lastGuest.querySelector('.translation')) {
+          const cap = document.createElement('div');
+          cap.className = 'translation';
+          cap.textContent = '→ ' + data.guestMessageEnglish;
+          lastGuest.appendChild(cap);
+        }
+      }
+
+      // Agent bubble: English is the primary text (what the manager wrote / would
+      // see), translated version shows as the caption underneath so the guest
+      // reads it in their own language. Matches the preset-opener rendering.
+      const englishText = data.guestReplyEnglish || data.guestReply;
+      const translatedForGuest = (data.guestReply && data.guestReply !== englishText) ? data.guestReply : null;
+      addAgentMessage(englishText, data.tier, translatedForGuest);
     } catch (err) {
       removeTypingIndicator();
       addAgentMessage("Couldn't reach the concierge — check your connection and try again.", 'urgent');

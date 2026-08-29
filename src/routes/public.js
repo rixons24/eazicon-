@@ -47,7 +47,7 @@ ${logo ? `<link rel="icon" href="${escapeAttr(logo)}">` : ''}
     <iframe id="chat-frame" title="Chat with ${escapeAttr(name)}"
       src="/widget-ui?hotelId=${encodeURIComponent(req.hotel.id)}&standalone=1"></iframe>
   </div>
-  <div id="powered-by">Powered by Karibu</div>
+  <div id="powered-by">Powered by Ezicon</div>
 </body>
 </html>`);
 });
