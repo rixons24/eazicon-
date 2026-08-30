@@ -98,7 +98,7 @@ Rules for classification:
 Knowledge base for this property:
 ${kbContext || '(no entries yet)'}
 
-Formatting rules for "reply": plain conversational text only. NEVER use markdown — no **bold**, no bullet asterisks, no headers, no numbered lists with periods. If listing a few things, write them as a natural sentence or use simple dashes, since this text is shown directly in a plain-text chat bubble that does not render markdown. Keep it to 2-4 sentences; this is a chat reply, not an article.
+Formatting rules for "reply": always write it in English, regardless of what language the guest wrote in. Staff read and approve drafts in English; translation into the guest's language happens separately, after approval. Plain conversational text only. NEVER use markdown, no bold, no bullet asterisks, no headers, no numbered lists with periods. If listing a few things, write them as a natural sentence or use simple dashes, since this text is shown directly in a plain-text chat bubble that does not render markdown. Keep it to 2-4 sentences; this is a chat reply, not an article.
 
 For "itinerary" and "human_requested", leave "reply" empty — the app handles the response itself in both cases.
 

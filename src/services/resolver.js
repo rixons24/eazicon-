@@ -208,7 +208,7 @@ async function resolveTieredReply({ hotel, conversationId, guestMessage, guestLa
   const kb = await loadKB(hotel.id);
   const kbHit = keywordMatchKB(kb, guestMessage);
   if (kbHit) {
-    const targetLang = guestLanguage || 'en';
+    const targetLang = await resolveLanguage(guestMessage, guestLanguage);
     const translated = targetLang === 'en' ? kbHit.answer : await translate(kbHit.answer, targetLang);
     const gmEn = await toEnglish(guestMessage, targetLang);
     await persistMessages({
