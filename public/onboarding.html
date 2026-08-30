@@ -23,70 +23,121 @@
     --danger: #b0392f;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
-  body { background: var(--bg); color: var(--text); line-height: 1.6; min-height: 100vh; }
+  body { background: var(--bg); color: var(--text); line-height: 1.6; min-height: 100vh; position: relative; overflow-x: hidden; }
+  body::before {
+    content: ''; position: absolute; top: -200px; left: 50%; transform: translateX(-50%);
+    width: 900px; height: 500px; border-radius: 50%;
+    background: radial-gradient(closest-side, rgba(25,116,138,0.08), transparent);
+    pointer-events: none; z-index: 0;
+  }
 
-  .wrap { max-width: 640px; margin: 0 auto; padding: 40px 24px 100px; }
+  .wrap { max-width: 640px; margin: 0 auto; padding: 40px 24px 100px; position: relative; z-index: 1; }
 
   .progress-row { display: flex; align-items: center; gap: 6px; margin-bottom: 36px; }
-  .progress-dot {
-    flex: 1; height: 4px; border-radius: 2px; background: var(--border-strong);
-    transition: background 0.3s ease;
-  }
+  .progress-dot { flex: 1; height: 4px; border-radius: 2px; background: var(--border-strong); transition: background 0.4s ease; }
   .progress-dot.done, .progress-dot.active { background: var(--teal); }
   .step-label { font-size: 12.5px; color: var(--text-faint); text-align: center; margin-bottom: 8px; }
 
   .step { display: none; }
-  .step.active { display: block; animation: fadeIn 0.3s ease; }
-  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  .step.active { display: block; animation: fadeIn 0.35s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
   h1 { font-size: 28px; font-weight: 600; letter-spacing: -0.015em; margin-bottom: 10px; }
   .subtitle { font-size: 15px; color: var(--text-dim); margin-bottom: 28px; }
 
   .card {
     background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px;
-    padding: 22px; margin-bottom: 14px;
+    padding: 22px; margin-bottom: 14px; transition: box-shadow 0.25s ease, border-color 0.25s ease;
   }
+  .card:hover { box-shadow: 0 12px 32px rgba(10,46,74,0.06); border-color: var(--border-strong); }
 
-  .suggest-row { display: flex; align-items: flex-start; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--border); }
+  .suggest-row { padding: 16px 0; border-bottom: 1px solid var(--border); }
   .suggest-row:last-child { border-bottom: none; }
-  .suggest-q { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
-  .suggest-row input {
+  .suggest-q { font-size: 14px; font-weight: 600; margin-bottom: 10px; }
+  .suggest-row input[type="text"] {
     width: 100%; padding: 9px 12px; font-size: 13.5px; font-family: inherit;
     border: 1px solid var(--border-strong); border-radius: 8px; background: var(--bg);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
   }
-  .suggest-row input:focus { outline: none; border-color: var(--teal); }
-  .suggest-body { flex: 1; }
+  .suggest-row input[type="text"]:focus { outline: none; border-color: var(--teal); box-shadow: 0 0 0 3px rgba(25,116,138,0.1); }
+
+  .time-range-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .time-field { display: flex; flex-direction: column; gap: 4px; }
+  .time-field label { font-size: 11.5px; color: var(--text-faint); }
+  .time-field input[type="time"] {
+    padding: 8px 10px; font-size: 13.5px; font-family: inherit;
+    border: 1px solid var(--border-strong); border-radius: 8px; background: var(--bg);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+  .time-field input[type="time"]:focus { outline: none; border-color: var(--teal); box-shadow: 0 0 0 3px rgba(25,116,138,0.1); }
+  .time-sep { color: var(--text-faint); font-size: 13px; margin-top: 16px; }
+
+  .choice-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .choice-pill {
+    padding: 9px 16px; border-radius: 100px; border: 1.5px solid var(--border-strong);
+    background: var(--bg-card); color: var(--text-dim); font-size: 13px; font-weight: 500;
+    cursor: pointer; font-family: inherit; transition: all 0.2s ease;
+  }
+  .choice-pill:hover { border-color: var(--teal); color: var(--teal); }
+  .choice-pill.selected { background: var(--navy); border-color: var(--navy); color: #fff; }
 
   .op-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; margin-bottom: 10px; }
   .op-row input, .op-row select {
     padding: 9px 12px; font-size: 13.5px; font-family: inherit;
     border: 1px solid var(--border-strong); border-radius: 8px; background: var(--bg);
+    transition: border-color 0.2s ease;
   }
   .op-row input:focus, .op-row select:focus { outline: none; border-color: var(--teal); }
   .op-row .remove-btn {
     background: none; border: none; color: var(--text-faint); cursor: pointer; font-size: 18px;
-    width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;
+    width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 8px;
+    transition: all 0.2s ease;
   }
-  .op-row .remove-btn:hover { color: var(--danger); }
+  .op-row .remove-btn:hover { color: var(--danger); background: rgba(176,57,47,0.08); }
   .add-op-btn {
     background: none; border: 1px dashed var(--border-strong); color: var(--text-dim);
     border-radius: 8px; padding: 10px; width: 100%; font-size: 13px; cursor: pointer;
-    font-family: inherit; margin-top: 4px;
+    font-family: inherit; margin-top: 4px; transition: all 0.2s ease;
   }
-  .add-op-btn:hover { border-color: var(--teal); color: var(--teal); }
+  .add-op-btn:hover { border-color: var(--teal); color: var(--teal); background: rgba(25,116,138,0.04); }
 
-  .step-nav { display: flex; justify-content: space-between; align-items: center; margin-top: 24px; }
-  .btn-primary {
-    padding: 12px 26px; background: var(--navy); color: #fff; border: none; border-radius: 10px;
-    font-size: 14.5px; font-weight: 600; cursor: pointer; font-family: inherit; transition: background 0.2s ease;
+  .step-nav { display: flex; justify-content: space-between; align-items: center; margin-top: 26px; }
+  .nav-left { display: flex; align-items: center; gap: 14px; }
+  .btn-back {
+    background: none; border: none; color: var(--text-dim); font-size: 13.5px;
+    cursor: pointer; font-family: inherit; display: flex; align-items: center; gap: 6px;
+    padding: 8px 4px; transition: color 0.2s ease;
   }
-  .btn-primary:hover { background: var(--teal); }
-  .btn-primary:disabled { background: var(--text-faint); cursor: not-allowed; }
-  .btn-skip {
-    background: none; border: none; color: var(--text-faint); font-size: 13.5px;
-    cursor: pointer; font-family: inherit; text-decoration: underline;
-  }
+  .btn-back:hover { color: var(--navy); }
+  .btn-skip { background: none; border: none; color: var(--text-faint); font-size: 13.5px; cursor: pointer; font-family: inherit; text-decoration: underline; }
   .btn-skip:hover { color: var(--text-dim); }
+
+  .btn-pill {
+    display: inline-flex; align-items: center; background: var(--navy);
+    border-radius: 14px; padding: 5px; text-decoration: none; color: #fff;
+    font-weight: 600; font-size: 14.5px; transition: background 0.4s ease, color 0.4s ease;
+    position: relative; cursor: pointer; border: none; font-family: inherit;
+  }
+  .btn-pill:hover { background: var(--mint); color: var(--navy); }
+  .btn-pill:disabled { opacity: 0.6; cursor: not-allowed; }
+  .btn-pill .btn-pill-icon {
+    width: 36px; height: 36px; background: var(--teal); border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; flex-shrink: 0; position: relative; z-index: 2;
+    transition: background 0.4s ease, transform 0.5s cubic-bezier(0.65, 0, 0.35, 1);
+  }
+  .btn-pill .btn-pill-icon svg {
+    width: 18px; height: 18px; stroke: #fff; stroke-width: 2.5; fill: none;
+    stroke-linecap: round; stroke-linejoin: round; transition: stroke 0.4s ease;
+  }
+  .btn-pill .btn-pill-label {
+    padding: 0 20px 0 14px; letter-spacing: -0.005em; position: relative; z-index: 1;
+    transition: transform 0.5s cubic-bezier(0.65, 0, 0.35, 1); white-space: nowrap;
+  }
+  .btn-pill:hover .btn-pill-icon { background: var(--mint); transform: translateX(var(--pill-slide, 0px)); }
+  .btn-pill:hover .btn-pill-icon svg { stroke: var(--navy); }
+  .btn-pill:hover .btn-pill-label { transform: translateX(-18px); }
+
   .status-line { font-size: 13px; margin-top: 10px; min-height: 18px; color: var(--danger); }
 
   .success-badge {
@@ -94,41 +145,26 @@
     background: var(--mint); color: var(--navy); border-radius: 100px;
     font-size: 13px; font-weight: 600; margin-bottom: 20px;
   }
-  .install-card h2 {
-    font-size: 15px; font-weight: 600; margin-bottom: 6px;
-    display: flex; align-items: center; gap: 10px;
-  }
-  .install-card h2 .num {
-    width: 24px; height: 24px; border-radius: 50%; background: var(--navy);
-    color: #fff; font-size: 12px; display: flex; align-items: center; justify-content: center;
-  }
+  .install-card h2 { font-size: 15px; font-weight: 600; margin-bottom: 6px; display: flex; align-items: center; gap: 10px; }
+  .install-card h2 .num { width: 24px; height: 24px; border-radius: 50%; background: var(--navy); color: #fff; font-size: 12px; display: flex; align-items: center; justify-content: center; }
   .install-card p { font-size: 14px; color: var(--text-dim); margin-bottom: 16px; }
   .code-block {
-    background: var(--navy); color: #a6f5c0; padding: 14px 16px;
-    border-radius: 10px; font-family: 'Menlo', 'Consolas', monospace;
-    font-size: 12px; overflow-x: auto; white-space: nowrap;
+    background: var(--navy); color: #a6f5c0; padding: 14px 16px; border-radius: 10px;
+    font-family: 'Menlo', 'Consolas', monospace; font-size: 12px; overflow-x: auto; white-space: nowrap;
     display: flex; align-items: center; justify-content: space-between; gap: 12px;
   }
   .code-block code { flex: 1; overflow-x: auto; }
   .copy-btn {
-    background: rgba(166,245,192,0.15); color: #a6f5c0; border: none;
-    padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px;
-    font-family: 'Inter', sans-serif; font-weight: 500; flex-shrink: 0;
+    background: rgba(166,245,192,0.15); color: #a6f5c0; border: none; padding: 6px 12px; border-radius: 6px;
+    cursor: pointer; font-size: 12px; font-family: 'Inter', sans-serif; font-weight: 500; flex-shrink: 0; transition: background 0.2s ease;
   }
   .copy-btn:hover { background: rgba(166,245,192,0.25); }
   .copy-btn.copied { background: var(--mint); color: var(--navy); }
-  .url-block {
-    display: flex; align-items: center; gap: 10px;
-    background: var(--bg-raised); padding: 12px 16px; border-radius: 10px;
-  }
+  .url-block { display: flex; align-items: center; gap: 10px; background: var(--bg-raised); padding: 12px 16px; border-radius: 10px; }
   .url-block a { flex: 1; color: var(--teal); text-decoration: none; font-size: 14px; word-break: break-all; }
   .url-block a:hover { text-decoration: underline; }
   .qr-wrap { text-align: center; padding: 20px 0; }
   .qr-wrap img { max-width: 200px; background: #fff; padding: 10px; border-radius: 12px; }
-  .dashboard-cta {
-    display: inline-block; margin-top: 8px; padding: 12px 24px; background: var(--navy);
-    color: #fff; border-radius: 10px; text-decoration: none; font-weight: 600; font-size: 14.5px;
-  }
 </style>
 </head>
 <body>
@@ -144,12 +180,10 @@
   <div class="step" id="step-1">
     <h1 id="welcomeTitle">Let's get your concierge ready</h1>
     <p class="subtitle">Three quick steps, about 3 minutes. The more your concierge knows going in, the fewer questions it has to escalate to you on day one.</p>
-    <div class="card">
-      <p style="font-size: 14px; color: var(--text-dim); margin: 0;">Next: a handful of common guest questions, answered once so they're covered automatically from the start.</p>
-    </div>
+    <div class="card"><p style="font-size: 14px; color: var(--text-dim); margin: 0;">Next: a handful of common guest questions, answered once so they're covered automatically from the start.</p></div>
     <div class="step-nav">
       <span></span>
-      <button class="btn-primary" onclick="goToStep(2)">Let's go &rarr;</button>
+      <button class="btn-pill" onclick="goToStep(2)"><span class="btn-pill-icon"><svg viewBox="0 0 24 24"><polyline points="9 6 15 12 9 18"></polyline></svg></span><span class="btn-pill-label">Let's go</span></button>
     </div>
   </div>
 
@@ -159,8 +193,11 @@
     <p class="subtitle">Fill in whichever apply to your property. Skip any that don't, you can always add more later in the dashboard.</p>
     <div class="card" id="faqSuggestList"></div>
     <div class="step-nav">
-      <button class="btn-skip" onclick="goToStep(3)">Skip this step</button>
-      <button class="btn-primary" id="faqContinueBtn" onclick="saveFaqStep()">Continue &rarr;</button>
+      <div class="nav-left">
+        <button class="btn-back" onclick="goToStep(1)">&larr; Back</button>
+        <button class="btn-skip" onclick="goToStep(3)">Skip this step</button>
+      </div>
+      <button class="btn-pill" id="faqContinueBtn" onclick="saveFaqStep()"><span class="btn-pill-icon"><svg viewBox="0 0 24 24"><polyline points="9 6 15 12 9 18"></polyline></svg></span><span class="btn-pill-label">Continue</span></button>
     </div>
     <p class="status-line" id="faqStatus"></p>
   </div>
@@ -174,8 +211,11 @@
       <button class="add-op-btn" onclick="addOpRow()">+ Add another</button>
     </div>
     <div class="step-nav">
-      <button class="btn-skip" onclick="goToStep(4)">Skip this step</button>
-      <button class="btn-primary" id="opContinueBtn" onclick="saveOpStep()">Continue &rarr;</button>
+      <div class="nav-left">
+        <button class="btn-back" onclick="goToStep(2)">&larr; Back</button>
+        <button class="btn-skip" onclick="goToStep(4)">Skip this step</button>
+      </div>
+      <button class="btn-pill" id="opContinueBtn" onclick="saveOpStep()"><span class="btn-pill-icon"><svg viewBox="0 0 24 24"><polyline points="9 6 15 12 9 18"></polyline></svg></span><span class="btn-pill-label">Continue</span></button>
     </div>
     <p class="status-line" id="opStatus"></p>
   </div>
@@ -188,19 +228,13 @@
     <div class="card install-card">
       <h2><span class="num">1</span>Add to your website</h2>
       <p>Copy this into your site's HTML, anywhere before <code>&lt;/body&gt;</code>. <strong>You can see your widget running in the bottom-right of this page right now.</strong></p>
-      <div class="code-block">
-        <code id="embedSnippet">Loading...</code>
-        <button class="copy-btn" onclick="copyText('embedSnippet', this)">Copy</button>
-      </div>
+      <div class="code-block"><code id="embedSnippet">Loading...</code><button class="copy-btn" onclick="copyText('embedSnippet', this)">Copy</button></div>
     </div>
 
     <div class="card install-card">
       <h2><span class="num">2</span>Share the link, no website needed</h2>
       <p>Add this to your Instagram bio, Google Business Profile, or guest confirmation emails.</p>
-      <div class="url-block">
-        <a id="chatUrl" href="#" target="_blank">Loading...</a>
-        <button class="copy-btn" onclick="copyText('chatUrl', this)">Copy</button>
-      </div>
+      <div class="url-block"><a id="chatUrl" href="#" target="_blank">Loading...</a><button class="copy-btn" onclick="copyText('chatUrl', this)">Copy</button></div>
     </div>
 
     <div class="card install-card">
@@ -209,16 +243,19 @@
       <div class="qr-wrap"><img id="qrImage" alt="QR code for your concierge"></div>
     </div>
 
-    <a href="dashboard" class="dashboard-cta">Open your dashboard &rarr;</a>
+    <div class="step-nav">
+      <button class="btn-back" onclick="goToStep(3)">&larr; Back</button>
+      <a href="dashboard" class="btn-pill"><span class="btn-pill-icon"><svg viewBox="0 0 24 24"><polyline points="9 6 15 12 9 18"></polyline></svg></span><span class="btn-pill-label">Open dashboard</span></a>
+    </div>
   </div>
 </div>
 
 <script>
-  const hotelId = localStorage.getItem('ezicon_hotel_id');
-  const embedSnippet = localStorage.getItem('ezicon_embed_snippet');
-  const chatUrl = localStorage.getItem('ezicon_chat_url');
-  const TOKEN = localStorage.getItem('ezicon_token');
-  const API_BASE = 'https://eazicon.onrender.com';
+  var hotelId = localStorage.getItem('ezicon_hotel_id');
+  var embedSnippet = localStorage.getItem('ezicon_embed_snippet');
+  var chatUrl = localStorage.getItem('ezicon_chat_url');
+  var TOKEN = localStorage.getItem('ezicon_token');
+  var API_BASE = 'https://eazicon.onrender.com';
 
   if (!hotelId) { window.location.href = 'signup.html'; }
 
@@ -228,6 +265,14 @@
     if (opts.headers) { for (var k in opts.headers) headers[k] = opts.headers[k]; }
     opts.headers = headers;
     return fetch(API_BASE + path, opts);
+  }
+
+  function measurePills() {
+    var pills = document.querySelectorAll('.btn-pill');
+    for (var i = 0; i < pills.length; i++) {
+      var label = pills[i].querySelector('.btn-pill-label');
+      if (label) pills[i].style.setProperty('--pill-slide', label.offsetWidth + 'px');
+    }
   }
 
   var currentStep = 1;
@@ -243,37 +288,86 @@
     currentStep = n;
     if (n === 4) loadInstallOptions();
     window.scrollTo(0, 0);
+    setTimeout(measurePills, 0);
   }
   goToStep(1);
+  window.addEventListener('resize', measurePills);
 
   var FAQ_SUGGESTIONS = [
-    { q: 'What time is check-in and check-out?', kw: ['check-in', 'checkin', 'check-out', 'checkout', 'arrival', 'departure'] },
-    { q: 'Is breakfast included?', kw: ['breakfast', 'included'] },
-    { q: "What's the wifi password?", kw: ['wifi', 'wi-fi', 'internet', 'password'] },
-    { q: 'Do you have parking?', kw: ['parking', 'park', 'car'] },
-    { q: 'Is there a pool?', kw: ['pool', 'swim', 'swimming'] },
-    { q: "What's the cancellation policy?", kw: ['cancel', 'cancellation', 'refund'] },
+    { q: 'What time is check-in and check-out?', kw: ['check-in', 'checkin', 'check-out', 'checkout', 'arrival', 'departure'], type: 'time-range' },
+    { q: 'Is breakfast included?', kw: ['breakfast', 'included'], type: 'choice', options: ['Yes, included', 'No', 'Available upon request'] },
+    { q: "What's the wifi password?", kw: ['wifi', 'wi-fi', 'internet', 'password'], type: 'text' },
+    { q: 'Do you have parking?', kw: ['parking', 'park', 'car'], type: 'choice', options: ['Yes, free', 'Yes, paid', 'No'] },
+    { q: 'Is there a pool?', kw: ['pool', 'swim', 'swimming'], type: 'choice', options: ['Yes', 'No'] },
+    { q: "What's the cancellation policy?", kw: ['cancel', 'cancellation', 'refund'], type: 'text' },
   ];
+
+  function formatTime12h(hhmm) {
+    if (!hhmm) return null;
+    var parts = hhmm.split(':');
+    var h = parseInt(parts[0], 10);
+    var m = parts[1];
+    var period = h >= 12 ? 'PM' : 'AM';
+    var h12 = h % 12; if (h12 === 0) h12 = 12;
+    return h12 + ':' + m + ' ' + period;
+  }
 
   var faqHtml = '';
   for (var fi = 0; fi < FAQ_SUGGESTIONS.length; fi++) {
-    faqHtml += '<div class="suggest-row"><div class="suggest-body">' +
-      '<div class="suggest-q">' + FAQ_SUGGESTIONS[fi].q + '</div>' +
-      '<input type="text" id="faq-answer-' + fi + '" placeholder="Your answer (leave blank to skip)">' +
-      '</div></div>';
+    var f = FAQ_SUGGESTIONS[fi];
+    faqHtml += '<div class="suggest-row"><div class="suggest-q">' + f.q + '</div>';
+    if (f.type === 'time-range') {
+      faqHtml += '<div class="time-range-row">' +
+        '<div class="time-field"><label>Check-in from</label><input type="time" id="faq-time-in-' + fi + '"></div>' +
+        '<div class="time-sep">&ndash;</div>' +
+        '<div class="time-field"><label>Check-out until</label><input type="time" id="faq-time-out-' + fi + '"></div>' +
+        '</div>';
+    } else if (f.type === 'choice') {
+      faqHtml += '<div class="choice-row" id="faq-choice-' + fi + '" data-value="">';
+      for (var oi = 0; oi < f.options.length; oi++) {
+        faqHtml += '<button type="button" class="choice-pill" onclick="selectChoice(' + fi + ', ' + oi + ', this)">' + f.options[oi] + '</button>';
+      }
+      faqHtml += '</div>';
+    } else {
+      faqHtml += '<input type="text" id="faq-answer-' + fi + '" placeholder="Your answer (leave blank to skip)">';
+    }
+    faqHtml += '</div>';
   }
   document.getElementById('faqSuggestList').innerHTML = faqHtml;
+
+  function selectChoice(fi, oi, btn) {
+    var row = document.getElementById('faq-choice-' + fi);
+    var pills = row.querySelectorAll('.choice-pill');
+    for (var i = 0; i < pills.length; i++) pills[i].classList.remove('selected');
+    if (row.dataset.value === FAQ_SUGGESTIONS[fi].options[oi]) { row.dataset.value = ''; return; }
+    btn.classList.add('selected');
+    row.dataset.value = FAQ_SUGGESTIONS[fi].options[oi];
+  }
+
+  function getFaqAnswer(fi) {
+    var f = FAQ_SUGGESTIONS[fi];
+    if (f.type === 'time-range') {
+      var inTime = document.getElementById('faq-time-in-' + fi).value;
+      var outTime = document.getElementById('faq-time-out-' + fi).value;
+      if (!inTime && !outTime) return '';
+      var parts = [];
+      if (inTime) parts.push('Check-in from ' + formatTime12h(inTime));
+      if (outTime) parts.push('check-out until ' + formatTime12h(outTime));
+      return parts.join(', ');
+    }
+    if (f.type === 'choice') return document.getElementById('faq-choice-' + fi).dataset.value || '';
+    return document.getElementById('faq-answer-' + fi).value.trim();
+  }
 
   async function saveFaqStep() {
     var btn = document.getElementById('faqContinueBtn');
     var status = document.getElementById('faqStatus');
     btn.disabled = true;
-    btn.textContent = 'Saving...';
     status.textContent = '';
     try {
       var saves = [];
       for (var i = 0; i < FAQ_SUGGESTIONS.length; i++) {
-        var answer = document.getElementById('faq-answer-' + i).value.trim();
+        var answer = getFaqAnswer(i);
         if (!answer) continue;
         saves.push(api('/dashboard/hotels/' + hotelId + '/knowledge', {
           method: 'POST',
@@ -286,7 +380,6 @@
       status.textContent = "Couldn't save right now. You can try again, or skip and add these later.";
     } finally {
       btn.disabled = false;
-      btn.textContent = 'Continue \u2192';
     }
   }
 
@@ -306,9 +399,7 @@
     row.className = 'op-row';
     row.id = 'op-row-' + id;
     var options = '';
-    for (var i = 0; i < OP_CATEGORIES.length; i++) {
-      options += '<option value="' + OP_CATEGORIES[i][0] + '">' + OP_CATEGORIES[i][1] + '</option>';
-    }
+    for (var i = 0; i < OP_CATEGORIES.length; i++) options += '<option value="' + OP_CATEGORIES[i][0] + '">' + OP_CATEGORIES[i][1] + '</option>';
     row.innerHTML = '<input type="text" id="op-name-' + id + '" placeholder="e.g. Mnemba Snorkeling Tours">' +
       '<select id="op-cat-' + id + '">' + options + '</select>' +
       '<button class="remove-btn" onclick="document.getElementById(\'op-row-' + id + '\').remove()" aria-label="Remove">\u00d7</button>';
@@ -320,7 +411,6 @@
     var btn = document.getElementById('opContinueBtn');
     var status = document.getElementById('opStatus');
     btn.disabled = true;
-    btn.textContent = 'Saving...';
     status.textContent = '';
     try {
       var rows = document.querySelectorAll('.op-row');
@@ -341,7 +431,6 @@
       status.textContent = "Couldn't save right now. You can try again, or skip and add these later.";
     } finally {
       btn.disabled = false;
-      btn.textContent = 'Continue \u2192';
     }
   }
 

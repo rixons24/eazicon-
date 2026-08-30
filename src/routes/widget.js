@@ -12,9 +12,50 @@ const { ensureConversation } = require('../services/conversation');
 const eleven = require('../services/elevenlabs');
 const audioCache = require('../services/audioCache');
 const { getPlan } = require('../services/plans');
+const whatsapp = require('../services/whatsapp');
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+
+// Builds the WhatsApp notification text sent to staff for a web-widget
+// message that needs their attention. WhatsApp renders *text* as bold in
+// its own clients, unrelated to the markdown-stripping concern elsewhere in
+// this app (that's about the chat widget having no renderer at all).
+const NOTIFY_TIER_LABEL = { urgent: 'Urgent', needs_approval: 'Needs attention', human_requested: 'Wants a human' };
+function buildStaffNotification({ tier, guestMessageEnglish, guestMessage, language }) {
+  const label = NOTIFY_TIER_LABEL[tier] || tier;
+  const langNote = language && language !== 'en' ? ` (${language})` : '';
+  const shown = guestMessageEnglish || guestMessage;
+  return `*${label}* — web chat${langNote}\n\n${shown}\n\n_Reply directly to this message to respond to the guest._`;
+}
+
+// Notifies staff on WhatsApp for any tier that needs a human — same three
+// tiers that get the pending/dismissed lifecycle in the dashboard queue.
+// Captures the WhatsApp message id Meta assigns so a reply-with-quote from
+// staff can be traced back to the exact conversation (see routes/whatsapp.js).
+async function notifyStaffViaWhatsApp({ hotel, conversationId, tier, guestMessage, guestMessageEnglish, language }) {
+  if (!['urgent', 'needs_approval', 'human_requested'].includes(tier)) return;
+  if (!hotel.whatsapp_enabled || !hotel.staff_whatsapp_number || !hotel.whatsapp_phone_number_id || !hotel.whatsapp_access_token) return;
+  try {
+    const text = buildStaffNotification({ tier, guestMessageEnglish, guestMessage, language });
+    const waRes = await whatsapp.sendMessage({
+      phoneNumberId: hotel.whatsapp_phone_number_id,
+      accessToken: hotel.whatsapp_access_token,
+      to: hotel.staff_whatsapp_number,
+      text,
+    });
+    const waMessageId = waRes?.messages?.[0]?.id;
+    if (waMessageId) {
+      await query(
+        'INSERT INTO whatsapp_message_links (id, hotel_id, conversation_id, wa_message_id) VALUES ($1, $2, $3, $4)',
+        [nanoid(12), hotel.id, conversationId, waMessageId]
+      );
+    }
+  } catch (e) {
+    // Never let a WhatsApp notification failure break the guest's reply
+    console.warn('[message] staff WhatsApp notification failed', e.message);
+  }
+}
 
 // Guest session id comes from the widget (localStorage) or is issued fresh below.
 // POST /message — text message from guest
@@ -36,6 +77,14 @@ router.post('/message', loadHotel, async (req, res) => {
     await guestProfile.recordInteraction({
       hotelId: req.hotel.id, sessionId: session,
       language: result.detectedLanguage, tier: result.tier, isNewConversation: isNew,
+    });
+
+    // Bridges this web conversation to the hotel's WhatsApp — see the
+    // helper above. Only fires for tiers that need a human, matching the
+    // dashboard queue's own definition of "needs attention".
+    await notifyStaffViaWhatsApp({
+      hotel: req.hotel, conversationId, tier: result.tier,
+      guestMessage, guestMessageEnglish: result.guestMessageEnglish, language: result.detectedLanguage,
     });
 
     // On a brand-new conversation, tack on one proactive question (allergies,

@@ -694,6 +694,12 @@
           <div style="background: var(--navy); color: var(--mint); padding: 10px 14px; border-radius: 8px; font-family: monospace; font-size: 12px; overflow-x: auto; white-space: nowrap;" id="waWebhookUrl">Loading...</div>
         </div>
 
+        <div class="form-group" style="margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--border);">
+          <label for="waStaffNumber">Get web chat messages on your WhatsApp too <span style="color: var(--text-faint); font-weight: 400;">(optional)</span></label>
+          <p style="font-size: 12.5px; color: var(--text-faint); margin: -2px 0 8px;">Your own personal WhatsApp number. When a web-chat message needs your attention, you'll get notified there, and can reply directly from WhatsApp, it's translated into the guest's language automatically. Reply by swiping to reply (or long-press &rarr; Reply) on the specific notification, so it knows which guest to answer.</p>
+          <input type="text" id="waStaffNumber" placeholder="e.g. +255712345678">
+        </div>
+
         <button class="btn-primary" style="width: auto; padding: 10px 22px;" onclick="saveWhatsApp()">Save WhatsApp settings</button>
         <p class="status-line" id="waStatus"></p>
       </div>
@@ -1307,6 +1313,7 @@
     document.getElementById('waVerifyToken').value = h.whatsapp_verify_token || '';
     document.getElementById('waEnabled').checked = !!h.whatsapp_enabled;
     document.getElementById('waWebhookUrl').textContent = `${API_BASE}/webhooks/whatsapp/${h.id}`;
+    document.getElementById('waStaffNumber').value = h.staff_whatsapp_number || '';
     updatePreview();
   }
 
@@ -1436,6 +1443,7 @@
       // "leave the stored token alone", not "clear it".
       accessToken: accessToken || null,
       enabled: document.getElementById('waEnabled').checked,
+      staffWhatsappNumber: document.getElementById('waStaffNumber').value.trim() || null,
     };
     try {
       const res = await api(`/dashboard/hotels/${CURRENT_HOTEL_ID}/whatsapp`, {method: 'PATCH', body: JSON.stringify(body)});

@@ -84,15 +84,16 @@ router.patch('/hotels/:hotelId', async (req, res) => {
 router.patch('/hotels/:hotelId/whatsapp', async (req, res) => {
   const hotel = await ownedHotel(req.account.accountId, req.params.hotelId);
   if (!hotel) return res.status(404).json({ error: 'not found' });
-  const { phoneNumberId, accessToken, verifyToken, enabled } = req.body;
+  const { phoneNumberId, accessToken, verifyToken, enabled, staffWhatsappNumber } = req.body;
   await query(
     `UPDATE hotels SET
        whatsapp_phone_number_id = COALESCE($1, whatsapp_phone_number_id),
        whatsapp_access_token = COALESCE($2, whatsapp_access_token),
        whatsapp_verify_token = COALESCE($3, whatsapp_verify_token),
-       whatsapp_enabled = $4
-     WHERE id = $5`,
-    [phoneNumberId || null, accessToken || null, verifyToken || null, !!enabled, hotel.id]
+       whatsapp_enabled = $4,
+       staff_whatsapp_number = COALESCE($5, staff_whatsapp_number)
+     WHERE id = $6`,
+    [phoneNumberId || null, accessToken || null, verifyToken || null, !!enabled, staffWhatsappNumber || null, hotel.id]
   );
   res.json({ ok: true });
 });
