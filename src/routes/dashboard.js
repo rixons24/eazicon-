@@ -326,7 +326,7 @@ router.post('/conversations/:conversationId/reply', async (req, res) => {
 router.post('/messages/:messageId/approve', async (req, res) => {
   const { editedText } = req.body;
   const { rows } = await query(
-    `SELECT m.*, c.hotel_id FROM messages m
+    `SELECT m.*, c.hotel_id, c.guest_language FROM messages m
      JOIN conversations c ON c.id = m.conversation_id
      WHERE m.id = $1 AND c.hotel_id IN (SELECT id FROM hotels WHERE account_id = $2)`,
     [req.params.messageId, req.account.accountId]
@@ -340,13 +340,28 @@ router.post('/messages/:messageId/approve', async (req, res) => {
     `UPDATE messages SET approval_status = $1, approval_draft = $2 WHERE id = $3`,
     [editedText ? 'edited' : 'approved', finalText, msg.id]
   );
-  // Insert staff-sent reply message
+
+  // Drafts are always written in English (staff read/approve in English —
+  // see the classification prompt) — translate into the guest's language
+  // before it's actually sent, same as every other reply path in the app.
+  // Without this, approving a draft sent the raw English text straight to
+  // guests regardless of what language they were chatting in.
+  const guestLang = msg.guest_language;
+  let translated = finalText;
+  if (guestLang && guestLang !== 'en') {
+    try { translated = await translate(finalText, guestLang); }
+    catch { /* fall back to English if translation fails — better than dropping the reply */ }
+  }
+
+  // Insert staff-sent reply message: content_original is what the guest
+  // sees (translated), content_english is the original approved text
+  // (for staff reviewing the thread later).
   await query(
     `INSERT INTO messages (id, conversation_id, role, content_original, content_english, tier, approval_status, created_at)
      VALUES ($1, $2, 'staff', $3, $4, 'auto', 'sent', NOW())`,
-    [nanoid(12), msg.conversation_id, finalText, finalText]
+    [nanoid(12), msg.conversation_id, translated, finalText]
   );
-  res.json({ ok: true, sentText: finalText });
+  res.json({ ok: true, sentText: translated });
 });
 
 router.post('/messages/:messageId/dismiss', async (req, res) => {
