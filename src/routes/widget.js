@@ -8,6 +8,7 @@ const groq = require('../services/groq');
 const translate = require('../services/translate');
 const guestProfile = require('../services/guestProfile');
 const discoveryQuestions = require('../services/discoveryQuestions');
+const { ensureConversation } = require('../services/conversation');
 const eleven = require('../services/elevenlabs');
 const audioCache = require('../services/audioCache');
 const { getPlan } = require('../services/plans');
@@ -15,21 +16,7 @@ const { getPlan } = require('../services/plans');
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
-// Get or create a conversation for a guest session (widget passes sessionId from localStorage)
-async function ensureConversation(hotelId, sessionId, channel = 'web') {
-  const { rows } = await query(
-    'SELECT id FROM conversations WHERE hotel_id = $1 AND guest_session = $2 AND status = \'open\'',
-    [hotelId, sessionId]
-  );
-  if (rows[0]) return { id: rows[0].id, isNew: false };
-  const id = nanoid(12);
-  await query(
-    'INSERT INTO conversations (id, hotel_id, guest_session, channel) VALUES ($1, $2, $3, $4)',
-    [id, hotelId, sessionId, channel]
-  );
-  return { id, isNew: true };
-}
-
+// Guest session id comes from the widget (localStorage) or is issued fresh below.
 // POST /message — text message from guest
 router.post('/message', loadHotel, async (req, res) => {
   const { guestMessage, guestLanguage, sessionId, channel } = req.body;

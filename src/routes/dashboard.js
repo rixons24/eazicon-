@@ -17,7 +17,11 @@ async function ownedHotel(accountId, hotelId) {
 // GET /dashboard/hotels — list this account's properties
 router.get('/hotels', async (req, res) => {
   const { rows } = await query('SELECT * FROM hotels WHERE account_id = $1 ORDER BY created_at', [req.account.accountId]);
-  res.json({ hotels: rows });
+  // Never send the WhatsApp access token back to the browser — it's a secret
+  // credential, not something the UI needs to display (the settings form
+  // shows a blank field and only updates it when the manager types a new one).
+  const hotels = rows.map(h => { const { whatsapp_access_token, ...rest } = h; return rest; });
+  res.json({ hotels });
 });
 
 // GET /dashboard/fetch-brand-color?url=... — best-effort brand color pull.
@@ -70,6 +74,25 @@ router.patch('/hotels/:hotelId', async (req, res) => {
        languages = COALESCE($6, languages)
      WHERE id = $7`,
     [name, propertyType, plan, voiceReplyEnabled, branding ? JSON.stringify(branding) : null, languages, hotel.id]
+  );
+  res.json({ ok: true });
+});
+
+// PATCH /dashboard/hotels/:hotelId/whatsapp — separate endpoint so the
+// enabled boolean can be set explicitly (COALESCE against null would make
+// "turn it off" impossible to distinguish from "don't change it").
+router.patch('/hotels/:hotelId/whatsapp', async (req, res) => {
+  const hotel = await ownedHotel(req.account.accountId, req.params.hotelId);
+  if (!hotel) return res.status(404).json({ error: 'not found' });
+  const { phoneNumberId, accessToken, verifyToken, enabled } = req.body;
+  await query(
+    `UPDATE hotels SET
+       whatsapp_phone_number_id = COALESCE($1, whatsapp_phone_number_id),
+       whatsapp_access_token = COALESCE($2, whatsapp_access_token),
+       whatsapp_verify_token = COALESCE($3, whatsapp_verify_token),
+       whatsapp_enabled = $4
+     WHERE id = $5`,
+    [phoneNumberId || null, accessToken || null, verifyToken || null, !!enabled, hotel.id]
   );
   res.json({ ok: true });
 });

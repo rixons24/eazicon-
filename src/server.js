@@ -7,6 +7,7 @@ const authRoutes = require('./routes/auth');
 const widgetRoutes = require('./routes/widget');
 const dashboardRoutes = require('./routes/dashboard');
 const publicRoutes = require('./routes/public');
+const whatsappRoutes = require('./routes/whatsapp');
 
 const app = express();
 
@@ -39,6 +40,7 @@ app.get('/health', (req, res) => res.json({ ok: true, ts: Date.now() }));
 app.use('/auth', authRoutes);
 app.use('/', widgetRoutes);        // POST /message, /voice-message, GET /audio/:id, /branding, /itinerary
 app.use('/', publicRoutes);        // GET /chat/:hotelId, /qr/:hotelId
+app.use('/webhooks/whatsapp', whatsappRoutes);  // GET/POST /webhooks/whatsapp/:hotelId
 
 // Serve the dashboard HTML at bare /dashboard. This MUST be registered before
 // the /dashboard API router, otherwise Express hands GET /dashboard to the

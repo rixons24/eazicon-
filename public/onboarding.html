@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>You're live | Ezicon</title>
+<title>Get set up | Ezicon</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -20,33 +20,89 @@
     --teal: #19748a;
     --mint: #a6f5c0;
     --mint-deep: #5fc48a;
+    --danger: #b0392f;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
-  body { background: var(--bg); color: var(--text); line-height: 1.6; }
+  body { background: var(--bg); color: var(--text); line-height: 1.6; min-height: 100vh; }
 
-  .wrap { max-width: 720px; margin: 60px auto; padding: 0 24px 80px; }
+  .wrap { max-width: 640px; margin: 0 auto; padding: 40px 24px 100px; }
+
+  .progress-row { display: flex; align-items: center; gap: 6px; margin-bottom: 36px; }
+  .progress-dot {
+    flex: 1; height: 4px; border-radius: 2px; background: var(--border-strong);
+    transition: background 0.3s ease;
+  }
+  .progress-dot.done, .progress-dot.active { background: var(--teal); }
+  .step-label { font-size: 12.5px; color: var(--text-faint); text-align: center; margin-bottom: 8px; }
+
+  .step { display: none; }
+  .step.active { display: block; animation: fadeIn 0.3s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+  h1 { font-size: 28px; font-weight: 600; letter-spacing: -0.015em; margin-bottom: 10px; }
+  .subtitle { font-size: 15px; color: var(--text-dim); margin-bottom: 28px; }
+
+  .card {
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px;
+    padding: 22px; margin-bottom: 14px;
+  }
+
+  .suggest-row { display: flex; align-items: flex-start; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--border); }
+  .suggest-row:last-child { border-bottom: none; }
+  .suggest-q { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+  .suggest-row input {
+    width: 100%; padding: 9px 12px; font-size: 13.5px; font-family: inherit;
+    border: 1px solid var(--border-strong); border-radius: 8px; background: var(--bg);
+  }
+  .suggest-row input:focus { outline: none; border-color: var(--teal); }
+  .suggest-body { flex: 1; }
+
+  .op-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; margin-bottom: 10px; }
+  .op-row input, .op-row select {
+    padding: 9px 12px; font-size: 13.5px; font-family: inherit;
+    border: 1px solid var(--border-strong); border-radius: 8px; background: var(--bg);
+  }
+  .op-row input:focus, .op-row select:focus { outline: none; border-color: var(--teal); }
+  .op-row .remove-btn {
+    background: none; border: none; color: var(--text-faint); cursor: pointer; font-size: 18px;
+    width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;
+  }
+  .op-row .remove-btn:hover { color: var(--danger); }
+  .add-op-btn {
+    background: none; border: 1px dashed var(--border-strong); color: var(--text-dim);
+    border-radius: 8px; padding: 10px; width: 100%; font-size: 13px; cursor: pointer;
+    font-family: inherit; margin-top: 4px;
+  }
+  .add-op-btn:hover { border-color: var(--teal); color: var(--teal); }
+
+  .step-nav { display: flex; justify-content: space-between; align-items: center; margin-top: 24px; }
+  .btn-primary {
+    padding: 12px 26px; background: var(--navy); color: #fff; border: none; border-radius: 10px;
+    font-size: 14.5px; font-weight: 600; cursor: pointer; font-family: inherit; transition: background 0.2s ease;
+  }
+  .btn-primary:hover { background: var(--teal); }
+  .btn-primary:disabled { background: var(--text-faint); cursor: not-allowed; }
+  .btn-skip {
+    background: none; border: none; color: var(--text-faint); font-size: 13.5px;
+    cursor: pointer; font-family: inherit; text-decoration: underline;
+  }
+  .btn-skip:hover { color: var(--text-dim); }
+  .status-line { font-size: 13px; margin-top: 10px; min-height: 18px; color: var(--danger); }
+
   .success-badge {
     display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px;
     background: var(--mint); color: var(--navy); border-radius: 100px;
     font-size: 13px; font-weight: 600; margin-bottom: 20px;
   }
-  h1 { font-size: 32px; font-weight: 600; letter-spacing: -0.015em; margin-bottom: 10px; }
-  .subtitle { font-size: 16px; color: var(--text-dim); margin-bottom: 40px; }
-
-  .card {
-    background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px;
-    padding: 24px; margin-bottom: 16px;
-  }
-  .card h2 {
+  .install-card h2 {
     font-size: 15px; font-weight: 600; margin-bottom: 6px;
     display: flex; align-items: center; gap: 10px;
   }
-  .card h2 .num {
+  .install-card h2 .num {
     width: 24px; height: 24px; border-radius: 50%; background: var(--navy);
     color: #fff; font-size: 12px; display: flex; align-items: center; justify-content: center;
   }
-  .card p { font-size: 14px; color: var(--text-dim); margin-bottom: 16px; }
-
+  .install-card p { font-size: 14px; color: var(--text-dim); margin-bottom: 16px; }
   .code-block {
     background: var(--navy); color: #a6f5c0; padding: 14px 16px;
     border-radius: 10px; font-family: 'Menlo', 'Consolas', monospace;
@@ -61,119 +117,267 @@
   }
   .copy-btn:hover { background: rgba(166,245,192,0.25); }
   .copy-btn.copied { background: var(--mint); color: var(--navy); }
-
   .url-block {
     display: flex; align-items: center; gap: 10px;
     background: var(--bg-raised); padding: 12px 16px; border-radius: 10px;
   }
   .url-block a { flex: 1; color: var(--teal); text-decoration: none; font-size: 14px; word-break: break-all; }
   .url-block a:hover { text-decoration: underline; }
-
   .qr-wrap { text-align: center; padding: 20px 0; }
-  .qr-wrap img { max-width: 220px; background: #fff; padding: 10px; border-radius: 12px; }
-
-  .next-steps {
-    background: var(--bg-raised); padding: 20px 24px; border-radius: 12px;
-    margin-top: 24px;
+  .qr-wrap img { max-width: 200px; background: #fff; padding: 10px; border-radius: 12px; }
+  .dashboard-cta {
+    display: inline-block; margin-top: 8px; padding: 12px 24px; background: var(--navy);
+    color: #fff; border-radius: 10px; text-decoration: none; font-weight: 600; font-size: 14.5px;
   }
-  .next-steps h3 { font-size: 14px; font-weight: 600; margin-bottom: 10px; color: var(--navy); }
-  .next-steps ul { list-style: none; padding: 0; }
-  .next-steps li { font-size: 13.5px; color: var(--text-dim); padding: 4px 0; }
-  .next-steps li::before { content: '→ '; color: var(--teal); font-weight: 700; }
 </style>
 </head>
 <body>
 
 <div class="wrap">
-  <span class="success-badge">✓ Your concierge is live</span>
-  <h1 id="welcomeTitle">Welcome to Ezicon</h1>
-  <p class="subtitle">Your AI concierge is running. Choose how you'd like guests to reach it.</p>
+  <div class="progress-row">
+    <div class="progress-dot" id="dot-1"></div>
+    <div class="progress-dot" id="dot-2"></div>
+    <div class="progress-dot" id="dot-3"></div>
+    <div class="progress-dot" id="dot-4"></div>
+  </div>
 
-  <div class="card">
-    <h2><span class="num">1</span>Add to your website</h2>
-    <p>Copy this one line into your site's HTML, anywhere before <code>&lt;/body&gt;</code>. Works on WordPress, Wix, Squarespace, or any hand-built site. <strong>You can see your widget running in the bottom-right of this page right now.</strong></p>
-    <div class="code-block">
-      <code id="embedSnippet">Loading...</code>
-      <button class="copy-btn" onclick="copyText('embedSnippet', this)">Copy</button>
+  <div class="step" id="step-1">
+    <h1 id="welcomeTitle">Let's get your concierge ready</h1>
+    <p class="subtitle">Three quick steps, about 3 minutes. The more your concierge knows going in, the fewer questions it has to escalate to you on day one.</p>
+    <div class="card">
+      <p style="font-size: 14px; color: var(--text-dim); margin: 0;">Next: a handful of common guest questions, answered once so they're covered automatically from the start.</p>
+    </div>
+    <div class="step-nav">
+      <span></span>
+      <button class="btn-primary" onclick="goToStep(2)">Let's go &rarr;</button>
     </div>
   </div>
 
-  <div class="card">
-    <h2><span class="num">2</span>Share the link, no website needed</h2>
-    <p>Add this to your Instagram bio, Google Business Profile, or in guest confirmation emails.</p>
-    <div class="url-block">
-      <a id="chatUrl" href="#" target="_blank">Loading...</a>
-      <button class="copy-btn" onclick="copyText('chatUrl', this)">Copy</button>
+  <div class="step" id="step-2">
+    <div class="step-label">Step 1 of 3</div>
+    <h1>Answer a few common questions</h1>
+    <p class="subtitle">Fill in whichever apply to your property. Skip any that don't, you can always add more later in the dashboard.</p>
+    <div class="card" id="faqSuggestList"></div>
+    <div class="step-nav">
+      <button class="btn-skip" onclick="goToStep(3)">Skip this step</button>
+      <button class="btn-primary" id="faqContinueBtn" onclick="saveFaqStep()">Continue &rarr;</button>
     </div>
+    <p class="status-line" id="faqStatus"></p>
   </div>
 
-  <div class="card">
-    <h2><span class="num">3</span>Print a QR code</h2>
-    <p>Put it at the front desk, in rooms, on printed confirmations. Guests scan and chat.</p>
-    <div class="qr-wrap">
-      <img id="qrImage" alt="QR code for your concierge">
+  <div class="step" id="step-3">
+    <div class="step-label">Step 2 of 3</div>
+    <h1>Add a few things to do nearby</h1>
+    <p class="subtitle">These power the itinerary builder guests see when they ask what there is to do. Add as many as you like, or skip and add them later.</p>
+    <div class="card">
+      <div id="opRowsWrap"></div>
+      <button class="add-op-btn" onclick="addOpRow()">+ Add another</button>
     </div>
+    <div class="step-nav">
+      <button class="btn-skip" onclick="goToStep(4)">Skip this step</button>
+      <button class="btn-primary" id="opContinueBtn" onclick="saveOpStep()">Continue &rarr;</button>
+    </div>
+    <p class="status-line" id="opStatus"></p>
   </div>
 
-  <div class="next-steps">
-    <h3>What's next</h3>
-    <ul>
-      <li>Add your FAQ answers so more messages get auto-answered</li>
-      <li>Add your partnered tour operators for itinerary suggestions</li>
-      <li>Review and approve any drafted replies from your queue</li>
-    </ul>
-    <a href="dashboard" style="display: inline-block; margin-top: 16px; padding: 10px 20px; background: var(--navy); color: #fff; border-radius: 10px; text-decoration: none; font-weight: 600; font-size: 14px;">Open your dashboard →</a>
+  <div class="step" id="step-4">
+    <span class="success-badge">&#10003; Your concierge is live</span>
+    <h1>You're ready to go</h1>
+    <p class="subtitle">Choose how you'd like guests to reach it.</p>
+
+    <div class="card install-card">
+      <h2><span class="num">1</span>Add to your website</h2>
+      <p>Copy this into your site's HTML, anywhere before <code>&lt;/body&gt;</code>. <strong>You can see your widget running in the bottom-right of this page right now.</strong></p>
+      <div class="code-block">
+        <code id="embedSnippet">Loading...</code>
+        <button class="copy-btn" onclick="copyText('embedSnippet', this)">Copy</button>
+      </div>
+    </div>
+
+    <div class="card install-card">
+      <h2><span class="num">2</span>Share the link, no website needed</h2>
+      <p>Add this to your Instagram bio, Google Business Profile, or guest confirmation emails.</p>
+      <div class="url-block">
+        <a id="chatUrl" href="#" target="_blank">Loading...</a>
+        <button class="copy-btn" onclick="copyText('chatUrl', this)">Copy</button>
+      </div>
+    </div>
+
+    <div class="card install-card">
+      <h2><span class="num">3</span>Print a QR code</h2>
+      <p>Put it at the front desk, in rooms, on printed confirmations.</p>
+      <div class="qr-wrap"><img id="qrImage" alt="QR code for your concierge"></div>
+    </div>
+
+    <a href="dashboard" class="dashboard-cta">Open your dashboard &rarr;</a>
   </div>
 </div>
 
 <script>
-  // Pull the credentials saved during signup
   const hotelId = localStorage.getItem('ezicon_hotel_id');
   const embedSnippet = localStorage.getItem('ezicon_embed_snippet');
   const chatUrl = localStorage.getItem('ezicon_chat_url');
+  const TOKEN = localStorage.getItem('ezicon_token');
   const API_BASE = 'https://eazicon.onrender.com';
 
-  if (!hotelId) {
-    // Direct visit without signup — send them to signup
-    window.location.href = 'signup.html';
-  } else {
+  if (!hotelId) { window.location.href = 'signup.html'; }
+
+  async function api(path, opts) {
+    opts = opts || {};
+    var headers = { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + TOKEN };
+    if (opts.headers) { for (var k in opts.headers) headers[k] = opts.headers[k]; }
+    opts.headers = headers;
+    return fetch(API_BASE + path, opts);
+  }
+
+  var currentStep = 1;
+  function goToStep(n) {
+    var steps = document.querySelectorAll('.step');
+    for (var i = 0; i < steps.length; i++) steps[i].classList.remove('active');
+    document.getElementById('step-' + n).classList.add('active');
+    for (var j = 1; j <= 4; j++) {
+      var dot = document.getElementById('dot-' + j);
+      dot.classList.toggle('done', j < n);
+      dot.classList.toggle('active', j === n);
+    }
+    currentStep = n;
+    if (n === 4) loadInstallOptions();
+    window.scrollTo(0, 0);
+  }
+  goToStep(1);
+
+  var FAQ_SUGGESTIONS = [
+    { q: 'What time is check-in and check-out?', kw: ['check-in', 'checkin', 'check-out', 'checkout', 'arrival', 'departure'] },
+    { q: 'Is breakfast included?', kw: ['breakfast', 'included'] },
+    { q: "What's the wifi password?", kw: ['wifi', 'wi-fi', 'internet', 'password'] },
+    { q: 'Do you have parking?', kw: ['parking', 'park', 'car'] },
+    { q: 'Is there a pool?', kw: ['pool', 'swim', 'swimming'] },
+    { q: "What's the cancellation policy?", kw: ['cancel', 'cancellation', 'refund'] },
+  ];
+
+  var faqHtml = '';
+  for (var fi = 0; fi < FAQ_SUGGESTIONS.length; fi++) {
+    faqHtml += '<div class="suggest-row"><div class="suggest-body">' +
+      '<div class="suggest-q">' + FAQ_SUGGESTIONS[fi].q + '</div>' +
+      '<input type="text" id="faq-answer-' + fi + '" placeholder="Your answer (leave blank to skip)">' +
+      '</div></div>';
+  }
+  document.getElementById('faqSuggestList').innerHTML = faqHtml;
+
+  async function saveFaqStep() {
+    var btn = document.getElementById('faqContinueBtn');
+    var status = document.getElementById('faqStatus');
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+    status.textContent = '';
+    try {
+      var saves = [];
+      for (var i = 0; i < FAQ_SUGGESTIONS.length; i++) {
+        var answer = document.getElementById('faq-answer-' + i).value.trim();
+        if (!answer) continue;
+        saves.push(api('/dashboard/hotels/' + hotelId + '/knowledge', {
+          method: 'POST',
+          body: JSON.stringify({ question: FAQ_SUGGESTIONS[i].q, answer: answer, keywords: FAQ_SUGGESTIONS[i].kw }),
+        }));
+      }
+      await Promise.all(saves);
+      goToStep(3);
+    } catch (e) {
+      status.textContent = "Couldn't save right now. You can try again, or skip and add these later.";
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Continue \u2192';
+    }
+  }
+
+  var OP_CATEGORIES = [
+    ['snorkel', 'Snorkeling'], ['diving', 'Scuba diving'], ['safari', 'Safari'],
+    ['wildlife', 'Wildlife & nature'], ['spice_tour', 'Spice tour'], ['culture', 'Culture & heritage'],
+    ['food', 'Food / dining'], ['spa', 'Spa / wellness'], ['nightlife', 'Nightlife'],
+    ['boat_cruise', 'Sunset / boat cruise'], ['water_sports', 'Water sports'], ['fishing', 'Deep sea fishing'],
+    ['shopping', 'Shopping / markets'], ['adventure', 'Adventure / hiking'], ['family', 'Family friendly'],
+  ];
+  var opRowCount = 0;
+  function addOpRow() {
+    opRowCount++;
+    var id = opRowCount;
+    var wrap = document.getElementById('opRowsWrap');
+    var row = document.createElement('div');
+    row.className = 'op-row';
+    row.id = 'op-row-' + id;
+    var options = '';
+    for (var i = 0; i < OP_CATEGORIES.length; i++) {
+      options += '<option value="' + OP_CATEGORIES[i][0] + '">' + OP_CATEGORIES[i][1] + '</option>';
+    }
+    row.innerHTML = '<input type="text" id="op-name-' + id + '" placeholder="e.g. Mnemba Snorkeling Tours">' +
+      '<select id="op-cat-' + id + '">' + options + '</select>' +
+      '<button class="remove-btn" onclick="document.getElementById(\'op-row-' + id + '\').remove()" aria-label="Remove">\u00d7</button>';
+    wrap.appendChild(row);
+  }
+  addOpRow(); addOpRow(); addOpRow();
+
+  async function saveOpStep() {
+    var btn = document.getElementById('opContinueBtn');
+    var status = document.getElementById('opStatus');
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+    status.textContent = '';
+    try {
+      var rows = document.querySelectorAll('.op-row');
+      var saves = [];
+      for (var r = 0; r < rows.length; r++) {
+        var id = rows[r].id.split('-')[2];
+        var name = document.getElementById('op-name-' + id).value.trim();
+        if (!name) continue;
+        var category = document.getElementById('op-cat-' + id).value;
+        saves.push(api('/dashboard/hotels/' + hotelId + '/operators', {
+          method: 'POST',
+          body: JSON.stringify({ name: name, category: category, tags: [category] }),
+        }));
+      }
+      await Promise.all(saves);
+      goToStep(4);
+    } catch (e) {
+      status.textContent = "Couldn't save right now. You can try again, or skip and add these later.";
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Continue \u2192';
+    }
+  }
+
+  var installLoaded = false;
+  function loadInstallOptions() {
+    if (installLoaded) return;
+    installLoaded = true;
     document.getElementById('embedSnippet').textContent = embedSnippet;
-    const httpsChatUrl = chatUrl.replace(/^http:/, 'https:');
-    const chatLink = document.getElementById('chatUrl');
+    var httpsChatUrl = chatUrl.replace(/^http:/, 'https:');
+    var chatLink = document.getElementById('chatUrl');
     chatLink.textContent = httpsChatUrl;
     chatLink.href = httpsChatUrl;
-    // QR code endpoint returns a PNG directly. Handle load failure by showing
-    // a text fallback rather than a broken image icon.
-    const qrImg = document.getElementById('qrImage');
-    qrImg.src = `${API_BASE}/qr/${encodeURIComponent(hotelId)}`;
-    qrImg.onerror = () => {
+    var qrImg = document.getElementById('qrImage');
+    qrImg.src = API_BASE + '/qr/' + encodeURIComponent(hotelId);
+    qrImg.onerror = function () {
       qrImg.style.display = 'none';
-      const fallback = document.createElement('p');
+      var fallback = document.createElement('p');
       fallback.style.cssText = 'font-size: 13px; color: var(--text-faint); font-style: italic;';
       fallback.textContent = 'QR code temporarily unavailable. Share the link above instead.';
       qrImg.parentNode.appendChild(fallback);
     };
-
-    // Live-load their actual widget on this page so they can play with it
-    // right now, before touching their real website.
-    const widgetScript = document.createElement('script');
-    widgetScript.src = `${API_BASE}/widget.js`;
+    var widgetScript = document.createElement('script');
+    widgetScript.src = API_BASE + '/widget.js';
     widgetScript.setAttribute('data-hotel-id', hotelId);
     widgetScript.async = true;
     document.body.appendChild(widgetScript);
   }
 
   async function copyText(elementId, btn) {
-    const text = document.getElementById(elementId).textContent;
+    var text = document.getElementById(elementId).textContent;
     try {
       await navigator.clipboard.writeText(text);
-      const originalText = btn.textContent;
+      var originalText = btn.textContent;
       btn.textContent = 'Copied!';
       btn.classList.add('copied');
-      setTimeout(() => {
-        btn.textContent = originalText;
-        btn.classList.remove('copied');
-      }, 1500);
+      setTimeout(function () { btn.textContent = originalText; btn.classList.remove('copied'); }, 1500);
     } catch (e) {
       alert('Copy failed. Please select and copy manually');
     }

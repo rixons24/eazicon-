@@ -668,6 +668,36 @@
         </p>
       </div>
 
+      <div class="add-form" style="margin-top: 20px;">
+        <h3>WhatsApp Business</h3>
+        <p style="font-size: 13.5px; color: var(--text-dim); margin-bottom: 14px;">Connect your own WhatsApp Business number via Meta's Cloud API so guests can message you there too. Text only for now, voice notes aren't supported yet. You'll need a Meta Business app with WhatsApp added, see <a href="https://developers.facebook.com/docs/whatsapp/cloud-api/get-started" target="_blank" style="color: var(--teal);">Meta's setup guide</a> for the phone number ID and access token.</p>
+
+        <div class="form-group">
+          <label for="waPhoneId">Phone number ID</label>
+          <input type="text" id="waPhoneId" placeholder="From your Meta app's WhatsApp settings">
+        </div>
+        <div class="form-group">
+          <label for="waAccessToken">Access token</label>
+          <input type="password" id="waAccessToken" placeholder="Permanent or long-lived access token">
+        </div>
+        <div class="form-group">
+          <label for="waVerifyToken">Verify token <span style="color: var(--text-faint); font-weight: 400;">(any string you choose)</span></label>
+          <input type="text" id="waVerifyToken" placeholder="e.g. a random password you make up">
+        </div>
+        <div class="checkbox-row">
+          <input type="checkbox" id="waEnabled">
+          <label for="waEnabled">Enable WhatsApp</label>
+        </div>
+
+        <div class="form-group">
+          <label>Your webhook URL <span style="color: var(--text-faint); font-weight: 400;">(paste this into Meta's app dashboard, under WhatsApp &rarr; Configuration)</span></label>
+          <div style="background: var(--navy); color: var(--mint); padding: 10px 14px; border-radius: 8px; font-family: monospace; font-size: 12px; overflow-x: auto; white-space: nowrap;" id="waWebhookUrl">Loading...</div>
+        </div>
+
+        <button class="btn-primary" style="width: auto; padding: 10px 22px;" onclick="saveWhatsApp()">Save WhatsApp settings</button>
+        <p class="status-line" id="waStatus"></p>
+      </div>
+
       <div class="danger-zone">
         <h3>Danger zone</h3>
         <p>Permanently deletes every conversation, message, and guest profile for this property, and resets the usage counter. Meant for clearing out test data before going live, not for use once real guests are chatting. This cannot be undone.</p>
@@ -1270,6 +1300,13 @@
     const chatLink = document.getElementById('chatLink');
     chatLink.href = `${API_BASE}/chat/${h.id}`;
     chatLink.textContent = `${API_BASE}/chat/${h.id}`;
+    // WhatsApp — access token is never sent back from the server for
+    // security, so that field always starts blank; leave it untouched on
+    // save unless the manager types a new one.
+    document.getElementById('waPhoneId').value = h.whatsapp_phone_number_id || '';
+    document.getElementById('waVerifyToken').value = h.whatsapp_verify_token || '';
+    document.getElementById('waEnabled').checked = !!h.whatsapp_enabled;
+    document.getElementById('waWebhookUrl').textContent = `${API_BASE}/webhooks/whatsapp/${h.id}`;
     updatePreview();
   }
 
@@ -1379,6 +1416,35 @@
       const hd = await hres.json();
       HOTELS = hd.hotels;
       CURRENT_HOTEL = HOTELS.find(h => h.id === CURRENT_HOTEL_ID);
+      status.className = 'status-line ok';
+      status.textContent = 'Saved.';
+      setTimeout(() => status.textContent = '', 2000);
+    } catch (e) {
+      status.className = 'status-line err';
+      status.textContent = e.message;
+    }
+  }
+
+  async function saveWhatsApp() {
+    const status = document.getElementById('waStatus');
+    const accessToken = document.getElementById('waAccessToken').value.trim();
+    const body = {
+      phoneNumberId: document.getElementById('waPhoneId').value.trim() || null,
+      verifyToken: document.getElementById('waVerifyToken').value.trim() || null,
+      // Only send a new access token if the manager actually typed one — the
+      // field always starts blank (see loadSettings), so empty here means
+      // "leave the stored token alone", not "clear it".
+      accessToken: accessToken || null,
+      enabled: document.getElementById('waEnabled').checked,
+    };
+    try {
+      const res = await api(`/dashboard/hotels/${CURRENT_HOTEL_ID}/whatsapp`, {method: 'PATCH', body: JSON.stringify(body)});
+      if (!res.ok) throw new Error('Save failed');
+      const hres = await api('/dashboard/hotels');
+      const hd = await hres.json();
+      HOTELS = hd.hotels;
+      CURRENT_HOTEL = HOTELS.find(h => h.id === CURRENT_HOTEL_ID);
+      document.getElementById('waAccessToken').value = '';
       status.className = 'status-line ok';
       status.textContent = 'Saved.';
       setTimeout(() => status.textContent = '', 2000);
