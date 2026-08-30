@@ -62,7 +62,7 @@ async function detectLanguage(text) {
 // because translation quality on lower-resource languages (Swahili, Amharic,
 // etc.) benefits from a larger model regardless of which plan the hotel is on.
 async function translate(text, targetLang) {
-  if (!text || !targetLang || targetLang === 'en') return text;
+  if (!text || !targetLang) return text;
   const languageMap = { en: 'English', es: 'Spanish', fr: 'French', de: 'German', it: 'Italian', pt: 'Portuguese', pl: 'Polish', zh: 'Chinese', ja: 'Japanese', ko: 'Korean', ar: 'Arabic', sw: 'Swahili', ru: 'Russian', nl: 'Dutch', hi: 'Hindi', tr: 'Turkish', am: 'Amharic' };
   const targetName = languageMap[targetLang] || targetLang;
   return chatCompletion({

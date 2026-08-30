@@ -25,7 +25,7 @@ const LANGUAGE_NAMES = {
 };
 
 async function translate(text, targetLang) {
-  if (!text || !targetLang || targetLang === 'en') return text;
+  if (!text || !targetLang) return text;
 
   const provider = (process.env.TRANSLATION_PROVIDER || 'groq').toLowerCase();
 

@@ -226,7 +226,7 @@ router.post('/itinerary', loadHotel, async (req, res) => {
   // up to this point (the "let's plan your day" prompt) was already in their
   // language, so the empty-state shouldn't suddenly switch to English.
   if (!activities.length) {
-    const EMPTY_MSG_EN = "No matching options on file yet for those interests — ask at the front desk and we'll help you plan something.";
+    const EMPTY_MSG_EN = "No matching options on file yet for those interests. Ask at the front desk and we'll help you plan something.";
     response.emptyMessage = (!guestLanguage || guestLanguage === 'en')
       ? EMPTY_MSG_EN
       : await translate(EMPTY_MSG_EN, guestLanguage).catch(() => EMPTY_MSG_EN);
