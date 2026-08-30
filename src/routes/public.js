@@ -31,17 +31,17 @@ ${logo ? `<link rel="icon" href="${escapeAttr(logo)}">` : ''}
     min-height: 100vh; display: flex; flex-direction: column;
   }
   #brand-header {
-    padding: 28px 20px 20px; text-align: center; background: ${primary}; color: white;
+    padding: 28px 20px 20px; text-align: center; background: transparent; color: ${primary};
   }
-  #brand-header img { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; margin-bottom: 10px; background: white; }
+  #brand-header img { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; margin-bottom: 10px; background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
   #brand-header h1 { font-size: 18px; font-weight: 600; }
-  #brand-header p { font-size: 13px; opacity: 0.85; margin-top: 2px; }
+  #brand-header p { font-size: 13px; opacity: 0.75; margin-top: 2px; }
   /* Center the chat panel with a sensible max width instead of stretching
      full-bleed on wide desktop screens — this was the "too wide" bug. */
   #chat-frame-wrap { flex: 1; padding: 16px; display: flex; justify-content: center; }
   #chat-frame {
     width: 100%; max-width: 460px; border: none; border-radius: 16px;
-    background: white; box-shadow: 0 2px 20px rgba(0,0,0,0.08);
+    background: white; box-shadow: 0 24px 60px -12px rgba(0,0,0,0.22), 0 8px 24px rgba(0,0,0,0.08);
   }
   #powered-by { text-align: center; padding: 10px; font-size: 11px; color: rgba(0,0,0,0.4); }
 </style>
