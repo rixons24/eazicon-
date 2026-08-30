@@ -207,6 +207,25 @@ async function resolveTieredReply({ hotel, conversationId, guestMessage, guestLa
     };
   }
 
+  // Caught here for any phrasing/language the free regex missed — the LLM
+  // understands "I want to explore with my wife" or its equivalent in any
+  // language means the same thing as "what things are there to do".
+  if (result.tier === 'itinerary') {
+    const prompt = finalLang === 'en' ? TIER_ACK.itinerary : await translate(TIER_ACK.itinerary, finalLang);
+    await persistMessages({
+      conversationId, guestMessage, guestMessageEnglish: gmEn,
+      tier: 'itinerary', agentReplyOriginalLang: prompt, agentReplyEnglish: TIER_ACK.itinerary,
+    });
+    await tickUsage(query, hotel.id);
+    return {
+      tier: 'itinerary',
+      guestReplyText: prompt,
+      guestReplyEnglish: TIER_ACK.itinerary,
+      guestMessageEnglish: gmEn,
+      detectedLanguage: finalLang,
+    };
+  }
+
   if (result.tier === 'auto') {
     const translated = finalLang === 'en' ? result.draft : await translate(result.draft, finalLang);
     await persistMessages({

@@ -75,21 +75,34 @@ async function translate(text, targetLang) {
 
 // Classify a guest message and, when relevant, draft a suggested reply for staff.
 // Returns { tier, draft, detectedLanguage }.
-// tier is auto | needs_approval | urgent. draft is populated only for needs_approval.
+// tier is auto | needs_approval | urgent | itinerary. draft is populated for needs_approval.
+//
+// "itinerary" is intentionally an LLM-judged category, not just the cheap
+// keyword regex in itineraryIntent.js — that regex only catches obvious
+// English phrasings ("things to do", "activities"). A guest writing "nahitaji
+// kuzunguka na familia" (Swahili) or "gostaria de explorar..." (Portuguese)
+// won't match any fixed keyword list in every language, but the LLM
+// recognizes the intent regardless of language or phrasing. The regex stays
+// as a free, instant first pass; this is the accurate fallback net.
 async function classifyAndDraft({ guestMessage, hotelName, knowledgeBase }) {
   const kbContext = knowledgeBase.map(k => `Q: ${k.question}\nA: ${k.answer}`).join('\n\n');
   const system = `You are the AI concierge for ${hotelName}. Classify each incoming guest message and respond as JSON.
 
 Rules for classification:
 - "urgent": complaints, safety issues, broken/leaking things, health issues, angry sentiment
-- "auto": routine question that can be answered directly from the knowledge base below
+- "itinerary": the guest wants ideas for things to do, sightseeing, excursions, exploring the area, or activities for themselves/family/partner — in ANY language or phrasing, not just obvious English keywords. This takes priority over "auto" whenever the guest is asking "what can we do" in spirit, even indirectly (e.g. "I want to explore with my wife", "we'd like to go around with the kids").
+- "auto": routine question that can be answered directly from the knowledge base below (checkout time, wifi, hours, amenities)
 - "needs_approval": guest-specific request (upgrade, booking, availability, custom request) — you draft a reply, staff approves
 
 Knowledge base for this property:
 ${kbContext || '(no entries yet)'}
 
+Formatting rules for "reply": plain conversational text only. NEVER use markdown — no **bold**, no bullet asterisks, no headers, no numbered lists with periods. If listing a few things, write them as a natural sentence or use simple dashes, since this text is shown directly in a plain-text chat bubble that does not render markdown. Keep it to 2-4 sentences; this is a chat reply, not an article.
+
+For "itinerary", leave "reply" empty — the app shows an interactive activity picker instead of a text answer.
+
 Respond with valid JSON only, no other text, matching this shape:
-{"tier": "auto" | "needs_approval" | "urgent", "detectedLanguage": "<ISO 639-1 code>", "reply": "<English reply text, or empty for urgent>"}`;
+{"tier": "auto" | "needs_approval" | "urgent" | "itinerary", "detectedLanguage": "<ISO 639-1 code>", "reply": "<plain text reply, or empty for urgent/itinerary>"}`;
 
   const raw = await chatCompletion({ system, user: guestMessage, temperature: 0.2 });
   try {

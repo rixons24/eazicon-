@@ -203,6 +203,18 @@
   // ---- Message rendering ----
   const tierLabel = { auto: 'Auto answered', needs_approval: 'Draft for staff', urgent: 'Urgent, escalated', limit_reached: 'Limit reached', itinerary: 'Trip planning' };
 
+  // Defense-in-depth: the classification prompt tells the LLM never to use
+  // markdown (this widget has no markdown renderer — it's plain textContent),
+  // but LLMs don't always follow formatting instructions perfectly. Strip the
+  // common artifacts so a stray "**bold**" doesn't show literal asterisks.
+  function stripMarkdown(text) {
+    return text
+      .replace(/\*\*(.*?)\*\*/g, '$1')   // **bold** -> bold
+      .replace(/\*(.*?)\*/g, '$1')       // *italic* -> italic
+      .replace(/^#{1,6}\s+/gm, '')       // # headers -> plain
+      .replace(/^[-•]\s+/gm, '');        // leading bullet markers -> plain
+  }
+
   function addGuestMessage(text) {
     const el = document.createElement('div');
     el.className = 'msg guest';
@@ -217,7 +229,7 @@
     el.className = 'msg agent';
     const tierMarkup = tier ? `<span class="msg-tier ${tier}">${tierLabel[tier] || tier}</span><br>` : '';
     el.innerHTML = `${tierMarkup}<div class="msg-bubble"></div>`;
-    el.querySelector('.msg-bubble').textContent = text;
+    el.querySelector('.msg-bubble').textContent = stripMarkdown(text);
     messagesEl.appendChild(el);
     messagesEl.scrollTop = messagesEl.scrollHeight;
   }
