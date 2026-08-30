@@ -57,6 +57,41 @@
   .msg-tier.auto { background: rgba(25,116,138,0.14); color: var(--teal); }
   .msg-tier.needs_approval { background: rgba(166,245,192,0.4); color: var(--navy); }
   .msg-tier.urgent { background: rgba(176,57,47,0.14); color: var(--danger); }
+  .msg-tier.itinerary { background: rgba(166,245,192,0.4); color: var(--navy); }
+
+  /* ---- In-chat itinerary picker ---- */
+  .itinerary-card {
+    background: var(--bg-raised); border-radius: 14px; padding: 14px;
+    max-width: 92%; align-self: flex-start; margin-top: 2px;
+  }
+  .itinerary-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+  .itinerary-chip {
+    border: 1px solid rgba(10,46,74,0.15); background: #fff; color: var(--text-dim);
+    border-radius: 100px; padding: 7px 13px; font-size: 12.5px; cursor: pointer;
+    font-family: inherit; transition: all 0.2s ease; display: inline-flex; align-items: center; gap: 5px;
+  }
+  .itinerary-chip:hover { border-color: var(--teal); color: var(--navy); }
+  .itinerary-chip.on { background: var(--navy); border-color: var(--navy); color: #fff; }
+  .itinerary-build-btn {
+    width: 100%; margin-top: 8px; padding: 9px; background: var(--navy); color: #fff;
+    border: none; border-radius: 10px; font-size: 13px; font-weight: 600;
+    font-family: inherit; cursor: pointer; transition: background 0.2s ease;
+  }
+  .itinerary-build-btn:hover { background: var(--teal); }
+  .itinerary-build-btn:disabled { background: var(--text-faint); cursor: not-allowed; }
+  .itinerary-plan { margin-top: 4px; }
+  .itinerary-stop {
+    display: flex; gap: 10px; padding: 8px 0; border-bottom: 1px solid rgba(10,46,74,0.08);
+  }
+  .itinerary-stop:last-child { border-bottom: none; }
+  .itinerary-stop-time { font-size: 11.5px; color: var(--text-faint); min-width: 40px; padding-top: 1px; }
+  .itinerary-stop-name { font-size: 13px; font-weight: 500; color: var(--text); }
+  .itinerary-stop-meta { font-size: 11.5px; color: var(--text-dim); margin-top: 1px; }
+  .itinerary-partner-tag {
+    display: inline-block; background: var(--mint); color: var(--navy); font-size: 9.5px;
+    font-weight: 700; text-transform: uppercase; padding: 1px 6px; border-radius: 4px; margin-left: 5px;
+  }
+  .itinerary-empty { font-size: 13px; color: var(--text-faint); font-style: italic; padding: 8px 0; }
 
   .typing {
     display: flex; gap: 4px; padding: 12px 14px; background: var(--bg-raised);
@@ -166,7 +201,7 @@
     });
 
   // ---- Message rendering ----
-  const tierLabel = { auto: 'Auto answered', needs_approval: 'Draft for staff', urgent: 'Urgent, escalated', limit_reached: 'Limit reached' };
+  const tierLabel = { auto: 'Auto answered', needs_approval: 'Draft for staff', urgent: 'Urgent, escalated', limit_reached: 'Limit reached', itinerary: 'Trip planning' };
 
   function addGuestMessage(text) {
     const el = document.createElement('div');
@@ -231,7 +266,12 @@
       // Widget shows the guest-facing reply directly (already in their language
       // from the backend). No English/translation split needed here — that
       // split is a marketing-demo feature on the landing page.
-      addAgentMessage(data.guestReply, data.tier);
+      if (data.tier === 'itinerary') {
+        addAgentMessage(data.guestReply, data.tier);
+        addItineraryPicker();
+      } else {
+        addAgentMessage(data.guestReply, data.tier);
+      }
     } catch (err) {
       hideTyping();
       addAgentMessage("Couldn't reach the concierge — check your connection.", 'urgent');
@@ -239,6 +279,86 @@
       sendBtn.disabled = false;
       inputEl.focus();
     }
+  }
+
+  // ---- Itinerary picker: renders as its own chat card, calls the real
+  // /itinerary endpoint, and shows the resulting day plan inline. This is
+  // the piece that was previously missing — the backend endpoint existed
+  // but nothing in conversation ever surfaced it to a guest. ----
+  const ITINERARY_OPTIONS = [
+    { id: 'snorkel', label: 'Snorkeling', icon: '🤿' },
+    { id: 'safari', label: 'Safari', icon: '🦁' },
+    { id: 'culture', label: 'Culture & heritage', icon: '🏛️' },
+    { id: 'food', label: 'Local food', icon: '🍽️' },
+    { id: 'spa', label: 'Spa & relax', icon: '💆' },
+    { id: 'nightlife', label: 'Nightlife', icon: '🌙' },
+  ];
+
+  function addItineraryPicker() {
+    const selected = new Set();
+    const card = document.createElement('div');
+    card.className = 'msg agent';
+    card.innerHTML = `
+      <div class="itinerary-card">
+        <div class="itinerary-chips">
+          ${ITINERARY_OPTIONS.map(o => `<button class="itinerary-chip" data-id="${o.id}">${o.icon} ${o.label}</button>`).join('')}
+        </div>
+        <button class="itinerary-build-btn" disabled>Choose at least one interest</button>
+      </div>`;
+    messagesEl.appendChild(card);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+
+    const buildBtn = card.querySelector('.itinerary-build-btn');
+    card.querySelectorAll('.itinerary-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const id = chip.dataset.id;
+        if (selected.has(id)) { selected.delete(id); chip.classList.remove('on'); }
+        else { selected.add(id); chip.classList.add('on'); }
+        buildBtn.disabled = selected.size === 0;
+        buildBtn.textContent = selected.size === 0 ? 'Choose at least one interest' : `Build my day (${selected.size} picked)`;
+      });
+    });
+
+    buildBtn.addEventListener('click', async () => {
+      buildBtn.disabled = true;
+      buildBtn.textContent = 'Building your plan...';
+      card.querySelectorAll('.itinerary-chip').forEach(c => c.style.pointerEvents = 'none');
+      try {
+        const res = await fetch(`${API_BASE}/itinerary`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ hotelId, interests: Array.from(selected) }),
+        });
+        const data = await res.json();
+        renderItineraryPlan(data.activities || []);
+      } catch (e) {
+        renderItineraryPlan([]);
+      }
+    });
+  }
+
+  function renderItineraryPlan(activities) {
+    const card = document.createElement('div');
+    card.className = 'msg agent';
+    if (!activities.length) {
+      card.innerHTML = `<div class="itinerary-card"><div class="itinerary-empty">No matching options on file yet for those interests — ask at the front desk and we'll help you plan something.</div></div>`;
+    } else {
+      const rows = activities.map(a => `
+        <div class="itinerary-stop">
+          <div class="itinerary-stop-time">${a.isMultiDay ? 'Full day' : ''}</div>
+          <div>
+            <div class="itinerary-stop-name">${escapeHtml(a.name)}${a.source === 'hotel_partner' ? '<span class="itinerary-partner-tag">Partner</span>' : ''}</div>
+            <div class="itinerary-stop-meta">${a.price ? '$' + a.price + ' pp' : 'Price on request'}${a.duration_days > 1 ? ' · ' + a.duration_days + ' days' : ''}</div>
+          </div>
+        </div>`).join('');
+      card.innerHTML = `<div class="itinerary-card"><div class="itinerary-plan">${rows}</div></div>`;
+    }
+    messagesEl.appendChild(card);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  function escapeHtml(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   }
 
   sendBtn.addEventListener('click', handleSend);

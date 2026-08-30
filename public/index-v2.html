@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Karibu — The AI Agent for Independent Hotels</title>
+<title>Ezicon — The AI Agent for Independent Hotels</title>
 <meta name="description" content="An AI concierge agent that translates, answers, and upsells for your hotel. No PMS required. Live the same day.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -61,6 +61,12 @@
     transition: transform 0.35s cubic-bezier(0.65, 0, 0.35, 1), width 0.35s cubic-bezier(0.65, 0, 0.35, 1), opacity 0.25s ease;
   }
   .nav-cta-wrap { display: flex; align-items: center; }
+  .btn-signin {
+    font-size: 14px; font-weight: 600; color: var(--navy);
+    padding: 9px 18px; border-radius: 10px; border: 1.5px solid var(--border-strong);
+    text-decoration: none; transition: all 0.2s ease; background: transparent;
+  }
+  .btn-signin:hover { border-color: var(--teal); color: var(--teal); background: rgba(25,116,138,0.05); }
   .nav-links:hover .nav-pill { opacity: 1; }
   .nav-cta { background: var(--blue); color: #ffffff; padding: 9px 18px; border-radius: 8px; font-size: 13.5px; font-weight: 600; }
   @media (max-width: 760px) { .nav-links { display: none; } }
@@ -441,6 +447,9 @@
   @media (max-width: 560px) {
     .nav { padding: 14px 18px; }
     .logo { font-size: 15px; }
+    .logo span { display: none; } /* icon-only on very small screens to leave room for both buttons */
+    .btn-signin { padding: 8px 12px; font-size: 13px; }
+    .btn-pill .btn-pill-label { font-size: 13px; }
     .hero { padding: 48px 18px 32px; }
     .hero h1 { font-size: 28px; }
     .hero-ctas { flex-direction: column; align-items: stretch; }
@@ -469,7 +478,7 @@
   <div class="nav">
     <div class="logo">
       <svg class="logo-mark" viewBox="0 0 22 22"><rect width="22" height="22" rx="6" fill="#0a2e4a"/><path d="M6 15 L11 6 L16 15 Z" fill="#a6f5c0"/></svg>
-      Karibu
+      <span>Ezicon</span>
     </div>
     <nav class="nav-links" id="navLinks">
       <span class="nav-pill" id="navPill"></span>
@@ -478,8 +487,8 @@
       <a href="#pricing">Pricing</a>
       <a href="#compare">Compare</a>
     </nav>
-    <div class="nav-cta-wrap" style="gap: 16px;">
-      <a href="signin" style="font-size: 14px; color: var(--text-dim); text-decoration: none; font-weight: 500;">Sign in</a>
+    <div class="nav-cta-wrap" style="gap: 12px;">
+      <a href="signin" class="btn-signin">Sign in</a>
       <a href="signup.html" class="btn-pill"><span class="btn-pill-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 6 15 12 9 18"></polyline></svg></span><span class="btn-pill-label">Start free</span></a>
     </div>
   </div>
@@ -721,7 +730,7 @@
       <tr><td>HiJiffy</td><td>~$100/mo</td><td>Yes</td><td>No</td></tr>
       <tr><td>Visito / Viqal</td><td>$99/mo</td><td>Yes</td><td>No</td></tr>
       <tr><td>Conduit</td><td>$649/mo</td><td>Yes</td><td>No</td></tr>
-      <tr class="us"><td>Karibu</td><td>Free → $79/mo</td><td>No</td><td class="highlight">Yes, QR and branded link</td></tr>
+      <tr class="us"><td>Ezicon</td><td>Free → $79/mo</td><td>No</td><td class="highlight">Yes, QR and branded link</td></tr>
     </table>
   </div>
 </section>
@@ -737,7 +746,7 @@
         <span class="faq-q">Do I need a PMS or booking system already in place?</span>
         <span class="faq-icon"><i class="ti ti-plus" aria-hidden="true"></i></span>
       </button>
-      <div class="faq-body"><p class="faq-a">No. Karibu runs independently of your property management system. If you add one later, it can connect, but it's never required.</p></div>
+      <div class="faq-body"><p class="faq-a">No. Ezicon runs independently of your property management system. If you add one later, it can connect, but it's never required.</p></div>
     </div>
     <div class="faq-item">
       <button class="faq-trigger" onclick="toggleFaq(this)">
@@ -771,7 +780,7 @@
 <footer>
   <div class="footer-grid">
     <div>
-      <div class="footer-brand">Karibu</div>
+      <div class="footer-brand">Ezicon</div>
       <p class="footer-brand-desc">An AI concierge agent built for East African hospitality, starting in Zanzibar.</p>
     </div>
     <div class="footer-cols">
@@ -790,7 +799,7 @@
     </div>
   </div>
   <div class="footer-bottom wrap">
-    <span>© 2026 Karibu. Placeholder name pending final decision.</span>
+    <span>© 2026 Ezicon. Placeholder name pending final decision.</span>
   </div>
 </footer>
 

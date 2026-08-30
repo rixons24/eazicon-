@@ -1,6 +1,6 @@
-# Karibu Backend
+# Ezicon Backend
 
-Monolithic Node/Express backend for the Karibu AI concierge. Handles guest
+Monolithic Node/Express backend for the Ezicon AI concierge. Handles guest
 messaging (text + voice), tiered response routing, staff dashboard endpoints,
 per-hotel branding and QR codes, and plan enforcement.
 

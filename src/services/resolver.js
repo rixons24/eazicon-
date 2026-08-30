@@ -20,13 +20,29 @@ const { nanoid } = require('nanoid');
 const groq = require('./groq');
 const translate = require('./translate');
 const { isUrgent } = require('./escalation');
+const { isItineraryIntent } = require('./itineraryIntent');
 const { checkLimit, tickUsage, getPlan } = require('./plans');
 
 const TIER_ACK = {
   urgent: 'Thank you — I have flagged this for our front desk manager who will help you right away.',
   needs_approval: "Let me check on that for you and get back with confirmation shortly.",
   limit_reached: 'This concierge has reached its message limit for now. Please ask at the front desk.',
+  itinerary: "I'd love to help you plan your day! Pick what interests you and I'll put together some options.",
 };
+
+// Cheap, zero-cost language guess from character script alone — used only for
+// the itinerary prompt, where we deliberately skip the LLM call (and its
+// language detection) to keep this path free. Catches the scripts that are
+// visually unambiguous; Latin-script languages fall back to English here
+// since telling Polish from German from Swahili needs real detection.
+function guessScriptLanguage(text) {
+  if (/[\u4e00-\u9fff]/.test(text)) return 'zh';
+  if (/[\u0600-\u06ff]/.test(text)) return 'ar';
+  if (/[\u3040-\u30ff]/.test(text)) return 'ja';
+  if (/[\u0400-\u04ff]/.test(text)) return 'ru';
+  if (/[\uac00-\ud7af]/.test(text)) return 'ko';
+  return null; // Latin-script or unrecognized — caller decides the fallback
+}
 
 // Cheap first-pass KB lookup — tokenize question keywords and try substring match.
 // Not as good as embeddings, but zero-cost and answers 60-80% of routine questions
@@ -106,6 +122,40 @@ async function resolveTieredReply({ hotel, conversationId, guestMessage, guestLa
       guestReplyEnglish: TIER_ACK.urgent,
       guestMessageEnglish: gmEn,
       detectedLanguage: guestLanguage || 'en',
+    };
+  }
+
+  // 2b. Itinerary intent — "what is there to do", "activities", etc. Skips the
+  // full classifyAndDraft LLM call (free, no KB context needed) and tells the
+  // widget to render the interactive interest picker instead of plain text.
+  // This is what actually surfaces the itinerary builder in conversation,
+  // rather than it sitting unused behind the /itinerary API.
+  //
+  // Language for the prompt: try the free script-based guess first (catches
+  // Chinese/Arabic/Japanese/Korean/Russian at zero cost). If that comes back
+  // empty — Latin-script languages like Polish, German, Swahili all look the
+  // same to a regex — fall back to one cheap, standalone detectLanguage call
+  // rather than defaulting straight to English. Single small-model call, no
+  // KB context, so it stays fast without giving up accuracy for those guests.
+  if (isItineraryIntent(guestMessage)) {
+    let targetLang = guestLanguage || guessScriptLanguage(guestMessage);
+    if (!targetLang) {
+      try { targetLang = await groq.detectLanguage(guestMessage); }
+      catch { targetLang = 'en'; }
+    }
+    const prompt = targetLang === 'en' ? TIER_ACK.itinerary : await translate(TIER_ACK.itinerary, targetLang);
+    const gmEn = await toEnglish(guestMessage, targetLang);
+    await persistMessages({
+      conversationId, guestMessage, guestMessageEnglish: gmEn,
+      tier: 'itinerary', agentReplyOriginalLang: prompt, agentReplyEnglish: TIER_ACK.itinerary,
+    });
+    await tickUsage(query, hotel.id);
+    return {
+      tier: 'itinerary',
+      guestReplyText: prompt,
+      guestReplyEnglish: TIER_ACK.itinerary,
+      guestMessageEnglish: gmEn,
+      detectedLanguage: targetLang,
     };
   }
 

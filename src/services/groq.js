@@ -1,10 +1,11 @@
-// Groq API wrapper. Handles LLM completions (drafting replies + translation)
-// and Whisper STT for voice messages.
+// Groq API wrapper. Handles LLM completions (drafting replies + translation),
+// lightweight language detection, and Whisper STT for voice messages.
 //
-// One provider, three uses:
+// One provider, four uses:
 //   1. classifyAndDraft() — decides the tier and drafts a suggested staff reply
 //   2. translate() — translates text between languages using an LLM prompt
-//   3. transcribe() — Whisper-large-v3 STT for guest voice notes
+//   3. detectLanguage() — cheap, single-word ISO code detection (no KB context)
+//   4. transcribe() — Whisper-large-v3 STT for guest voice notes
 
 const GROQ_BASE = 'https://api.groq.com/openai/v1';
 
@@ -21,7 +22,10 @@ async function chatCompletion({ system, user, temperature = 0.3, model }) {
       Authorization: `Bearer ${requireKey()}`,
     },
     body: JSON.stringify({
-      model: model || process.env.GROQ_LLM_MODEL || 'llama-3.3-70b-versatile',
+      // Fallback here matters: if GROQ_LLM_MODEL is ever unset, this must be a
+      // currently-supported model, not a deprecated one (llama-3.3-70b-versatile
+      // and llama-3.1-8b-instant were both retired by Groq in mid-2026).
+      model: model || process.env.GROQ_LLM_MODEL || 'openai/gpt-oss-20b',
       messages: [
         { role: 'system', content: system },
         { role: 'user', content: user },
@@ -35,6 +39,22 @@ async function chatCompletion({ system, user, temperature = 0.3, model }) {
   }
   const data = await res.json();
   return data.choices[0].message.content.trim();
+}
+
+// Cheap, standalone language detection — no KB context, no drafting, just a
+// single ISO 639-1 code back. Used for paths (like the itinerary prompt) that
+// deliberately skip the full classifyAndDraft call to stay fast/free, but
+// still want better-than-script-guessing accuracy for Latin-script languages
+// (Polish, German, Swahili, etc. all look the same to a regex).
+async function detectLanguage(text) {
+  const raw = await chatCompletion({
+    system: 'Detect the language of the user\'s message. Reply with ONLY the ISO 639-1 two-letter code (e.g. "en", "pl", "sw"). No other text.',
+    user: text,
+    temperature: 0,
+    model: process.env.GROQ_LLM_MODEL || 'openai/gpt-oss-20b', // small/fast is fine here
+  });
+  const code = raw.trim().toLowerCase().slice(0, 2);
+  return /^[a-z]{2}$/.test(code) ? code : 'en';
 }
 
 // Translate arbitrary text into targetLang. Returns just the translated string.
@@ -110,4 +130,4 @@ async function transcribe(audioBuffer, filename = 'audio.webm') {
   };
 }
 
-module.exports = { chatCompletion, translate, classifyAndDraft, transcribe };
+module.exports = { chatCompletion, translate, detectLanguage, classifyAndDraft, transcribe };
