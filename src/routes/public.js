@@ -15,13 +15,14 @@ router.get('/chat/:hotelId', loadHotel, (req, res) => {
   const logo = b.logoUrl || '';
   const tagline = b.tagline || 'Your stay, your way';
   const name = req.hotel.name;
+  const agentName = b.agentName || `${name} Assistant`;
 
   res.send(`<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${escapeHtml(name)} — Concierge</title>
+<title>${escapeHtml(agentName)}</title>
 ${logo ? `<link rel="icon" href="${escapeAttr(logo)}">` : ''}
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
@@ -32,19 +33,24 @@ ${logo ? `<link rel="icon" href="${escapeAttr(logo)}">` : ''}
   #brand-header img { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; margin-bottom: 10px; background: white; }
   #brand-header h1 { font-size: 18px; font-weight: 600; }
   #brand-header p { font-size: 13px; opacity: 0.85; margin-top: 2px; }
-  #chat-frame-wrap { flex: 1; padding: 16px; display: flex; }
-  #chat-frame { flex: 1; border: none; border-radius: 16px; background: white; box-shadow: 0 2px 20px rgba(0,0,0,0.08); }
+  /* Center the chat panel with a sensible max width instead of stretching
+     full-bleed on wide desktop screens — this was the "too wide" bug. */
+  #chat-frame-wrap { flex: 1; padding: 16px; display: flex; justify-content: center; }
+  #chat-frame {
+    width: 100%; max-width: 460px; border: none; border-radius: 16px;
+    background: white; box-shadow: 0 2px 20px rgba(0,0,0,0.08);
+  }
   #powered-by { text-align: center; padding: 10px; font-size: 11px; color: rgba(0,0,0,0.4); }
 </style>
 </head>
 <body>
   <div id="brand-header">
     ${logo ? `<img src="${escapeAttr(logo)}" alt="${escapeAttr(name)} logo">` : ''}
-    <h1>${escapeHtml(name)}</h1>
+    <h1>${escapeHtml(agentName)}</h1>
     <p>${escapeHtml(tagline)}</p>
   </div>
   <div id="chat-frame-wrap">
-    <iframe id="chat-frame" title="Chat with ${escapeAttr(name)}"
+    <iframe id="chat-frame" title="Chat with ${escapeAttr(agentName)}"
       src="/widget-ui?hotelId=${encodeURIComponent(req.hotel.id)}&standalone=1"></iframe>
   </div>
   <div id="powered-by">Powered by Ezicon</div>

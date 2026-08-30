@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sign in — Ezicon</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #fdfefe;
+    --bg-raised: #e7f2f7;
+    --bg-card: #ffffff;
+    --border: rgba(10,46,74,0.1);
+    --border-strong: rgba(10,46,74,0.2);
+    --text: #000000;
+    --text-dim: rgba(10,46,74,0.7);
+    --text-faint: rgba(10,46,74,0.45);
+    --navy: #0a2e4a;
+    --teal: #19748a;
+    --mint: #a6f5c0;
+    --mint-deep: #5fc48a;
+    --danger: #b0392f;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text);
+    min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px;
+  }
+  .card {
+    max-width: 400px; width: 100%; background: var(--bg-card);
+    border: 1px solid var(--border); border-radius: 16px; padding: 32px;
+    box-shadow: 0 4px 20px rgba(10,46,74,0.04);
+  }
+  .logo-row { display: flex; align-items: center; gap: 9px; margin-bottom: 28px; }
+  .logo-mark { width: 24px; height: 24px; border-radius: 6px; }
+  .logo-row span { font-weight: 600; font-size: 16px; }
+  h1 { font-size: 24px; font-weight: 600; margin-bottom: 6px; letter-spacing: -0.015em; }
+  p.sub { font-size: 14px; color: var(--text-dim); margin-bottom: 24px; }
+  .form-group { margin-bottom: 16px; }
+  .form-group label { display: block; font-size: 13px; font-weight: 500; color: var(--text-dim); margin-bottom: 6px; }
+  .form-group input {
+    width: 100%; padding: 11px 14px; font-size: 14px; font-family: inherit;
+    border: 1px solid var(--border-strong); border-radius: 10px; background: var(--bg);
+    color: var(--text); transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+  .form-group input:focus {
+    outline: none; border-color: var(--teal); box-shadow: 0 0 0 3px rgba(25,116,138,0.12);
+  }
+  .btn-primary {
+    width: 100%; padding: 12px; background: var(--navy); color: #fff;
+    border: none; border-radius: 10px; font-size: 14.5px; font-weight: 600;
+    font-family: inherit; cursor: pointer; transition: background 0.2s ease;
+  }
+  .btn-primary:hover { background: var(--teal); }
+  .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+  .status-line { font-size: 13px; margin-top: 10px; min-height: 18px; text-align: center; }
+  .status-line.err { color: var(--danger); }
+  .status-line.ok { color: var(--mint-deep); }
+  .alt-link { text-align: center; margin-top: 22px; font-size: 13.5px; color: var(--text-dim); }
+  .alt-link a { color: var(--teal); font-weight: 500; text-decoration: none; }
+  .alt-link a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <a href="/" class="logo-row" style="text-decoration: none; color: var(--text);">
+    <svg class="logo-mark" viewBox="0 0 22 22"><rect width="22" height="22" rx="6" fill="#0a2e4a"/><path d="M6 15 L11 6 L16 15 Z" fill="#a6f5c0"/></svg>
+    <span>Ezicon</span>
+  </a>
+  <h1>Sign in</h1>
+  <p class="sub">Manage your concierge, review messages, and update your knowledge base.</p>
+
+  <div class="form-group">
+    <label for="email">Email</label>
+    <input type="email" id="email" placeholder="you@yourhotel.com" autocomplete="email">
+  </div>
+  <div class="form-group">
+    <label for="password">Password</label>
+    <input type="password" id="password" placeholder="Your password" autocomplete="current-password">
+  </div>
+  <button class="btn-primary" id="submitBtn" onclick="handleSignin()">Sign in</button>
+  <p class="status-line" id="status"></p>
+
+  <p class="alt-link">Don't have an account yet? <a href="signup.html">Start free</a></p>
+</div>
+
+<script>
+  const API_BASE = location.origin;
+
+  async function handleSignin() {
+    const btn = document.getElementById('submitBtn');
+    const status = document.getElementById('status');
+    const email = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
+
+    if (!email || !password) {
+      status.className = 'status-line err';
+      status.textContent = 'Enter your email and password.';
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Signing in...';
+    status.textContent = '';
+
+    try {
+      const res = await fetch(`${API_BASE}/auth/signin`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        status.className = 'status-line err';
+        status.textContent = data.error || 'Sign in failed. Check your credentials.';
+        btn.disabled = false;
+        btn.textContent = 'Sign in';
+        return;
+      }
+      localStorage.setItem('ezicon_token', data.token);
+      localStorage.setItem('ezicon_email', email);
+      status.className = 'status-line ok';
+      status.textContent = 'Signed in — redirecting...';
+      setTimeout(() => { window.location.href = 'dashboard'; }, 500);
+    } catch (err) {
+      status.className = 'status-line err';
+      status.textContent = "Couldn't reach the server — check your connection.";
+      btn.disabled = false;
+      btn.textContent = 'Sign in';
+    }
+  }
+
+  document.getElementById('password').addEventListener('keydown', (e) => { if (e.key === 'Enter') handleSignin(); });
+</script>
+
+</body>
+</html>

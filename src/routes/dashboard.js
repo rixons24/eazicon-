@@ -129,6 +129,22 @@ router.get('/hotels/:hotelId/queue', async (req, res) => {
   res.json({ messages: rows, counts: Object.fromEntries(countRows.map(r => [r.tier, parseInt(r.count, 10)])) });
 });
 
+// GET /dashboard/conversations/:conversationId/messages — full thread, ordered
+// chronologically, with both original-language text and English translations
+// on every row. Used by the "View full conversation" expand in the queue so a
+// manager can double-check what a guest actually said if a tier looks off.
+router.get('/conversations/:conversationId/messages', async (req, res) => {
+  const { rows } = await query(
+    `SELECT m.* FROM messages m
+     JOIN conversations c ON c.id = m.conversation_id
+     JOIN hotels h ON h.id = c.hotel_id
+     WHERE m.conversation_id = $1 AND h.account_id = $2
+     ORDER BY m.created_at ASC`,
+    [req.params.conversationId, req.account.accountId]
+  );
+  res.json({ messages: rows });
+});
+
 // POST /dashboard/messages/:messageId/approve — staff approves (or edits) a draft
 router.post('/messages/:messageId/approve', async (req, res) => {
   const { editedText } = req.body;

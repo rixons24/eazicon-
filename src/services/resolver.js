@@ -8,11 +8,17 @@
 //   3. Try quick keyword match against knowledge base — cheap, no LLM cost
 //   4. Fall through to LLM classification + drafting — the expensive path
 //
-// Returns { tier, guestReplyText, staffDraft?, detectedLanguage }.
+// Every message row stores BOTH the original-language text and an English
+// version in content_english — this is what lets a manager see what a guest
+// actually said even if the concierge misread the tier, without needing to
+// re-translate anything themselves.
+//
+// Returns { tier, guestReplyText, guestReplyEnglish, guestMessageEnglish, staffDraft?, detectedLanguage }.
 
 const { query } = require('../db/pool');
 const { nanoid } = require('nanoid');
 const groq = require('./groq');
+const translate = require('./translate');
 const { isUrgent } = require('./escalation');
 const { checkLimit, tickUsage, getPlan } = require('./plans');
 
@@ -46,20 +52,28 @@ async function loadKB(hotelId) {
   return rows;
 }
 
-async function persistMessages({ conversationId, guestMessage, guestLanguage, tier, staffDraft, guestReply }) {
-  // Guest message
+// Persists both messages with full bilingual context: the guest row carries
+// their original text AND its English translation; the agent row carries the
+// English version staff would recognize AND whatever language the guest saw.
+async function persistMessages({ conversationId, guestMessage, guestMessageEnglish, tier, staffDraft, agentReplyOriginalLang, agentReplyEnglish }) {
   await query(
     `INSERT INTO messages (id, conversation_id, role, content_original, content_english, tier, approval_status, approval_draft, created_at)
      VALUES ($1, $2, 'guest', $3, $4, $5, $6, $7, NOW())`,
-    [nanoid(12), conversationId, guestMessage, null, tier, tier === 'needs_approval' ? 'pending' : null, staffDraft || null]
+    [nanoid(12), conversationId, guestMessage, guestMessageEnglish || null, tier, tier === 'needs_approval' ? 'pending' : null, staffDraft || null]
   );
-  // Agent auto-reply (or the acknowledgment shown to the guest)
   await query(
     `INSERT INTO messages (id, conversation_id, role, content_original, content_english, tier, created_at)
      VALUES ($1, $2, 'agent', $3, $4, $5, NOW())`,
-    [nanoid(12), conversationId, guestReply, guestReply, tier]
+    [nanoid(12), conversationId, agentReplyOriginalLang, agentReplyEnglish, tier]
   );
   await query('UPDATE conversations SET updated_at = NOW() WHERE id = $1', [conversationId]);
+}
+
+// Best-effort translate-to-English for the guest's own message, used purely
+// for the staff-facing caption. Never blocks or fails the main reply flow.
+async function toEnglish(text, lang) {
+  if (!lang || lang === 'en') return null;
+  try { return await translate(text, 'en'); } catch { return null; }
 }
 
 // Main entry point. Callers pass a hotel row (already loaded), the guest
@@ -78,22 +92,14 @@ async function resolveTieredReply({ hotel, conversationId, guestMessage, guestLa
     };
   }
 
-  // Best-effort: translate the guest's own message to English for the staff-view
-  // caption in the demo. Non-blocking — if translation fails, we just skip the
-  // caption rather than fail the whole request.
-  async function guestMessageInEnglish(lang) {
-    if (!lang || lang === 'en') return null;
-    try { return await groq.translate(guestMessage, 'en'); } catch { return null; }
-  }
-
   // 2. Urgent escalation (English keyword regex — the LLM path also catches non-English urgent)
   if (isUrgent(guestMessage)) {
+    const gmEn = await toEnglish(guestMessage, guestLanguage);
     await persistMessages({
-      conversationId, guestMessage, guestLanguage,
-      tier: 'urgent', guestReply: TIER_ACK.urgent,
+      conversationId, guestMessage, guestMessageEnglish: gmEn,
+      tier: 'urgent', agentReplyOriginalLang: TIER_ACK.urgent, agentReplyEnglish: TIER_ACK.urgent,
     });
     await tickUsage(query, hotel.id);
-    const gmEn = await guestMessageInEnglish(guestLanguage);
     return {
       tier: 'urgent',
       guestReplyText: TIER_ACK.urgent,
@@ -108,13 +114,13 @@ async function resolveTieredReply({ hotel, conversationId, guestMessage, guestLa
   const kbHit = keywordMatchKB(kb, guestMessage);
   if (kbHit) {
     const targetLang = guestLanguage || 'en';
-    const translated = targetLang === 'en' ? kbHit.answer : await groq.translate(kbHit.answer, targetLang);
+    const translated = targetLang === 'en' ? kbHit.answer : await translate(kbHit.answer, targetLang);
+    const gmEn = await toEnglish(guestMessage, targetLang);
     await persistMessages({
-      conversationId, guestMessage, guestLanguage,
-      tier: 'auto', guestReply: translated,
+      conversationId, guestMessage, guestMessageEnglish: gmEn,
+      tier: 'auto', agentReplyOriginalLang: translated, agentReplyEnglish: kbHit.answer,
     });
     await tickUsage(query, hotel.id);
-    const gmEn = await guestMessageInEnglish(guestLanguage);
     return {
       tier: 'auto',
       guestReplyText: translated,
@@ -134,12 +140,12 @@ async function resolveTieredReply({ hotel, conversationId, guestMessage, guestLa
   });
 
   const finalLang = guestLanguage || result.detectedLanguage || 'en';
-  const gmEn = await guestMessageInEnglish(finalLang);
+  const gmEn = await toEnglish(guestMessage, finalLang);
 
   if (result.tier === 'urgent') {
     await persistMessages({
-      conversationId, guestMessage, guestLanguage: finalLang,
-      tier: 'urgent', guestReply: TIER_ACK.urgent,
+      conversationId, guestMessage, guestMessageEnglish: gmEn,
+      tier: 'urgent', agentReplyOriginalLang: TIER_ACK.urgent, agentReplyEnglish: TIER_ACK.urgent,
     });
     await tickUsage(query, hotel.id);
     return {
@@ -152,10 +158,10 @@ async function resolveTieredReply({ hotel, conversationId, guestMessage, guestLa
   }
 
   if (result.tier === 'auto') {
-    const translated = finalLang === 'en' ? result.draft : await groq.translate(result.draft, finalLang);
+    const translated = finalLang === 'en' ? result.draft : await translate(result.draft, finalLang);
     await persistMessages({
-      conversationId, guestMessage, guestLanguage: finalLang,
-      tier: 'auto', guestReply: translated,
+      conversationId, guestMessage, guestMessageEnglish: gmEn,
+      tier: 'auto', agentReplyOriginalLang: translated, agentReplyEnglish: result.draft,
     });
     await tickUsage(query, hotel.id);
     return {
@@ -168,10 +174,11 @@ async function resolveTieredReply({ hotel, conversationId, guestMessage, guestLa
   }
 
   // needs_approval: guest gets a holding message, staff gets the draft in their queue
-  const ack = finalLang === 'en' ? TIER_ACK.needs_approval : await groq.translate(TIER_ACK.needs_approval, finalLang);
+  const ack = finalLang === 'en' ? TIER_ACK.needs_approval : await translate(TIER_ACK.needs_approval, finalLang);
   await persistMessages({
-    conversationId, guestMessage, guestLanguage: finalLang,
-    tier: 'needs_approval', staffDraft: result.draft, guestReply: ack,
+    conversationId, guestMessage, guestMessageEnglish: gmEn,
+    tier: 'needs_approval', staffDraft: result.draft,
+    agentReplyOriginalLang: ack, agentReplyEnglish: TIER_ACK.needs_approval,
   });
   await tickUsage(query, hotel.id);
   return {

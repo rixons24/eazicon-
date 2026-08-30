@@ -161,7 +161,10 @@
   .msg-channel { text-transform: uppercase; opacity: 0.6; }
   .msg-lang { padding: 1px 7px; border-radius: 4px; background: var(--bg-raised); font-weight: 500; text-transform: uppercase; font-size: 10.5px; }
   .msg-guest {
-    font-size: 14.5px; color: var(--text); margin-bottom: 8px; padding: 8px 0;
+    font-size: 14.5px; color: var(--text); margin-bottom: 4px; padding: 8px 0 0;
+  }
+  .msg-translation {
+    font-size: 12.5px; color: var(--text-faint); font-style: italic; margin-bottom: 8px; padding: 0 0 4px;
   }
   .msg-draft {
     background: var(--bg-raised); border-radius: 10px; padding: 12px 14px; margin: 10px 0;
@@ -175,6 +178,18 @@
   }
   .edit-drawer.open { display: block; }
   .edit-drawer textarea { min-height: 90px; margin-bottom: 10px; }
+
+  /* ---- Full conversation thread view ---- */
+  .thread-view { display: none; margin-top: 10px; border-top: 1px dashed var(--border); padding-top: 10px; }
+  .thread-view.open { display: block; }
+  .thread-loading { font-size: 13px; color: var(--text-faint); padding: 10px 0; }
+  .thread-msg { padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .thread-msg:last-child { border-bottom: none; }
+  .thread-role { font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-faint); margin-bottom: 2px; }
+  .thread-msg.guest .thread-role { color: var(--teal); }
+  .thread-msg.agent .thread-role, .thread-msg.staff .thread-role { color: var(--mint-deep); }
+  .thread-text { font-size: 13.5px; color: var(--text); }
+  .thread-translation { font-size: 12px; color: var(--text-faint); font-style: italic; margin-top: 2px; }
 
   /* ---- Knowledge / Operators lists ---- */
   .list-empty { padding: 40px 24px; text-align: center; color: var(--text-faint); font-size: 14px; background: var(--bg-raised); border-radius: 12px; }
@@ -413,6 +428,10 @@
           </div>
         </div>
         <div class="form-group">
+          <label for="setAgentName">Assistant name <span style="color: var(--text-faint); font-weight: 400;">(what guests see as the chat title, e.g. "Amara" or "Zanzi Concierge")</span></label>
+          <input type="text" id="setAgentName" placeholder="Defaults to “[Your Hotel] Assistant”">
+        </div>
+        <div class="form-group">
           <label for="setTagline">Tagline (shown on branded chat page)</label>
           <input type="text" id="setTagline" placeholder="Your stay, your way">
         </div>
@@ -609,6 +628,11 @@
     const isUrgent = m.tier === 'urgent';
     const cls = isUrgent ? 'urgent-item' : (isPending ? 'pending' : '');
     const timeStr = new Date(m.created_at).toLocaleString([], {month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'});
+    // Show the English translation under the guest's original message whenever
+    // it differs — this is what lets a manager sanity-check the concierge's
+    // read of the message even if the tier decision looks off.
+    const translationLine = (m.content_english && m.content_english !== m.content_original)
+      ? `<div class="msg-translation">→ ${escapeHtml(m.content_english)}</div>` : '';
     const draftBlock = m.approval_draft ? `
       <div class="msg-draft">
         <div class="msg-draft-label">Suggested reply</div>
@@ -624,6 +648,9 @@
         <textarea id="edit-text-${m.id}">${escapeHtml(m.approval_draft || '')}</textarea>
         <button class="btn-primary" style="width: auto; padding: 8px 16px; font-size: 13px;" onclick="approveMessage('${m.id}', true)">Send edited reply</button>
       </div>` : '';
+    const viewThreadLink = m.conversation_id
+      ? `<button class="btn-ghost" style="margin-top: 8px;" onclick="toggleThread('${m.id}', '${m.conversation_id}')">View full conversation</button>
+         <div class="thread-view" id="thread-${m.id}"></div>` : '';
     return `
       <div class="msg-item ${cls}">
         <div class="msg-meta">
@@ -633,9 +660,52 @@
           <span>${timeStr}</span>
         </div>
         <div class="msg-guest">${escapeHtml(m.content_original)}</div>
+        ${translationLine}
         ${!compact ? draftBlock : ''}
         ${!compact ? actions : ''}
+        ${!compact ? viewThreadLink : ''}
       </div>`;
+  }
+
+  // Fetch and render the full back-and-forth for a conversation, in
+  // chronological order, with English translations shown for every guest
+  // message — this is the "let the manager verify what was actually said"
+  // view, useful when a tier decision looks questionable.
+  const threadCache = {};
+  async function toggleThread(msgId, conversationId) {
+    const el = document.getElementById(`thread-${msgId}`);
+    if (el.classList.contains('open')) {
+      el.classList.remove('open');
+      return;
+    }
+    el.classList.add('open');
+    el.innerHTML = '<div class="thread-loading">Loading conversation...</div>';
+    try {
+      if (!threadCache[conversationId]) {
+        const res = await api(`/dashboard/conversations/${conversationId}/messages`);
+        const data = await res.json();
+        threadCache[conversationId] = data.messages || [];
+      }
+      const thread = threadCache[conversationId];
+      if (!thread.length) {
+        el.innerHTML = '<div class="thread-loading">No messages found.</div>';
+        return;
+      }
+      el.innerHTML = thread.map(t => {
+        const isGuest = t.role === 'guest';
+        const roleLabel = isGuest ? 'Guest' : (t.role === 'staff' ? 'Staff' : 'Concierge');
+        const tLine = (t.content_english && t.content_english !== t.content_original)
+          ? `<div class="thread-translation">→ ${escapeHtml(t.content_english)}</div>` : '';
+        return `
+          <div class="thread-msg ${t.role}">
+            <div class="thread-role">${roleLabel}</div>
+            <div class="thread-text">${escapeHtml(t.content_original)}</div>
+            ${tLine}
+          </div>`;
+      }).join('');
+    } catch (e) {
+      el.innerHTML = '<div class="thread-loading">Failed to load conversation.</div>';
+    }
   }
 
   function toggleEdit(id) {
@@ -788,6 +858,7 @@
     const b = h.branding || {};
     document.getElementById('setColor').value = b.primaryColor || '#0a2e4a';
     document.getElementById('setAccent').value = b.accentColor || '#a6f5c0';
+    document.getElementById('setAgentName').value = b.agentName || '';
     document.getElementById('setTagline').value = b.tagline || '';
     document.getElementById('setLogo').value = b.logoUrl || '';
     // Embed code + chat link
@@ -809,6 +880,7 @@
         primaryColor: document.getElementById('setColor').value,
         accentColor: document.getElementById('setAccent').value,
         tagline: document.getElementById('setTagline').value.trim(),
+        agentName: document.getElementById('setAgentName').value.trim(),
         logoUrl: document.getElementById('setLogo').value.trim(),
       },
     };

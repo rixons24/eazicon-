@@ -105,8 +105,8 @@
 <header>
   <div class="logo" id="brandLogo"><span class="logo-fallback" id="brandInitial">·</span></div>
   <div class="hotel-info">
-    <div class="hotel-name" id="hotelName">Concierge</div>
-    <div class="hotel-status">Ready to help</div>
+    <div class="hotel-name" id="agentTitle">Concierge</div>
+    <div class="hotel-status" id="hotelSubtitle">Ready to help</div>
   </div>
 </header>
 
@@ -141,24 +141,25 @@
   const inputEl = document.getElementById('input');
   const sendBtn = document.getElementById('sendBtn');
 
-  // ---- Fetch branding (name, logo, tagline) so widget looks like the hotel ----
+  // ---- Fetch branding (name, logo, tagline, agentName) so the widget presents
+  // as "this hotel's assistant" rather than a generic third-party chat box. ----
   fetch(`${API_BASE}/branding?hotelId=${encodeURIComponent(hotelId)}`)
     .then(r => r.ok ? r.json() : Promise.reject())
     .then(brand => {
-      if (brand.name) {
-        document.getElementById('hotelName').textContent = brand.name;
-        document.title = brand.name + ' — Concierge';
-        document.getElementById('brandInitial').textContent = brand.name.charAt(0).toUpperCase();
-      }
+      const hotelName = brand.name || 'this property';
+      const agentName = brand.agentName || `${hotelName} Assistant`;
+      document.getElementById('agentTitle').textContent = agentName;
+      document.getElementById('hotelSubtitle').textContent = `Ready to help · ${hotelName}`;
+      document.title = agentName;
+      document.getElementById('brandInitial').textContent = agentName.charAt(0).toUpperCase();
       if (brand.logoUrl) {
         const logoContainer = document.getElementById('brandLogo');
-        logoContainer.innerHTML = `<img src="${brand.logoUrl}" alt="${brand.name || 'Logo'}">`;
+        logoContainer.innerHTML = `<img src="${brand.logoUrl}" alt="${hotelName} logo">`;
       }
       if (brand.primaryColor) {
         document.documentElement.style.setProperty('--navy', brand.primaryColor);
       }
-      // Show greeting once branding is loaded so it uses the real hotel name
-      addAgentMessage(`Hi! I'm the ${brand.name || 'concierge'} assistant. Ask me anything — in any language.`, null);
+      addAgentMessage(`Hi! I'm ${agentName}. Ask me anything about your stay — in any language.`, null);
     })
     .catch(() => {
       addAgentMessage("Hi! I'm the concierge. Ask me anything — in any language.", null);

@@ -38,14 +38,18 @@ async function chatCompletion({ system, user, temperature = 0.3, model }) {
 }
 
 // Translate arbitrary text into targetLang. Returns just the translated string.
+// Uses GROQ_TRANSLATE_MODEL specifically (not the plan's classification model)
+// because translation quality on lower-resource languages (Swahili, Amharic,
+// etc.) benefits from a larger model regardless of which plan the hotel is on.
 async function translate(text, targetLang) {
   if (!text || !targetLang || targetLang === 'en') return text;
-  const languageMap = { en: 'English', es: 'Spanish', fr: 'French', de: 'German', it: 'Italian', pt: 'Portuguese', pl: 'Polish', zh: 'Chinese', ja: 'Japanese', ko: 'Korean', ar: 'Arabic', sw: 'Swahili', ru: 'Russian', nl: 'Dutch' };
+  const languageMap = { en: 'English', es: 'Spanish', fr: 'French', de: 'German', it: 'Italian', pt: 'Portuguese', pl: 'Polish', zh: 'Chinese', ja: 'Japanese', ko: 'Korean', ar: 'Arabic', sw: 'Swahili', ru: 'Russian', nl: 'Dutch', hi: 'Hindi', tr: 'Turkish', am: 'Amharic' };
   const targetName = languageMap[targetLang] || targetLang;
   return chatCompletion({
-    system: `You are a translator. Translate the user's text to ${targetName}. Reply with ONLY the translation, no preamble, no quotes, no explanation.`,
+    system: `You are a professional translator. Translate the user's text to ${targetName}, preserving tone and meaning precisely. Reply with ONLY the translation, no preamble, no quotes, no explanation.`,
     user: text,
     temperature: 0.1,
+    model: process.env.GROQ_TRANSLATE_MODEL || process.env.GROQ_LLM_MODEL || 'openai/gpt-oss-120b',
   });
 }
 

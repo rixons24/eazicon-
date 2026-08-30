@@ -53,6 +53,7 @@ app.use('/dashboard', dashboardRoutes);
 const publicDir = path.join(__dirname, '..', 'public');
 app.get('/', (req, res) => res.sendFile(path.join(publicDir, 'index-v2.html')));
 app.get('/signup', (req, res) => res.sendFile(path.join(publicDir, 'signup.html')));
+app.get('/signin', (req, res) => res.sendFile(path.join(publicDir, 'signin.html')));
 app.get('/contact', (req, res) => res.sendFile(path.join(publicDir, 'contact.html')));
 app.get('/onboarding', (req, res) => res.sendFile(path.join(publicDir, 'onboarding.html')));
 app.get('/widget-ui', (req, res) => res.sendFile(path.join(publicDir, 'widget-ui.html')));

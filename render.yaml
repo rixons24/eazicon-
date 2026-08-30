@@ -19,9 +19,17 @@ services:
       - key: GROQ_API_KEY
         sync: false                    # set manually in Render dashboard
       - key: GROQ_LLM_MODEL
-        value: llama-3.3-70b-versatile
+        value: openai/gpt-oss-20b
       - key: GROQ_STT_MODEL
         value: whisper-large-v3
+      - key: GROQ_TRANSLATE_MODEL
+        value: openai/gpt-oss-120b
+      - key: TRANSLATION_PROVIDER
+        value: groq                    # switch to 'gemini' + set GEMINI_API_KEY for better Swahili/African-language quality
+      - key: GEMINI_API_KEY
+        sync: false                    # optional — only needed if TRANSLATION_PROVIDER=gemini
+      - key: GEMINI_MODEL
+        value: gemini-2.0-flash
       - key: ELEVENLABS_API_KEY
         sync: false                    # set manually in Render dashboard
       - key: ELEVENLABS_DEFAULT_VOICE_ID
