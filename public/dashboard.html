@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dashboard — Ezicon</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/2.44.0/iconfont/tabler-icons.min.css">
+<style>
+  :root {
+    --bg: #fdfefe;
+    --bg-raised: #f2f6f8;
+    --bg-card: #ffffff;
+    --border: rgba(10,46,74,0.1);
+    --border-strong: rgba(10,46,74,0.2);
+    --text: #000000;
+    --text-dim: rgba(10,46,74,0.7);
+    --text-faint: rgba(10,46,74,0.45);
+    --navy: #0a2e4a;
+    --teal: #19748a;
+    --mint: #a6f5c0;
+    --mint-deep: #5fc48a;
+    --danger: #b0392f;
+    --amber: #d97706;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); line-height: 1.5; min-height: 100vh; }
+
+  /* ---- Login screen ---- */
+  #loginScreen {
+    display: none; min-height: 100vh; align-items: center; justify-content: center; padding: 24px;
+  }
+  #loginScreen.show { display: flex; }
+  .login-card {
+    max-width: 400px; width: 100%; background: var(--bg-card);
+    border: 1px solid var(--border); border-radius: 16px; padding: 32px;
+    box-shadow: 0 4px 20px rgba(10,46,74,0.04);
+  }
+  .login-card h1 { font-size: 24px; font-weight: 600; margin-bottom: 6px; letter-spacing: -0.015em; }
+  .login-card p.sub { font-size: 14px; color: var(--text-dim); margin-bottom: 24px; }
+  .form-group { margin-bottom: 16px; }
+  .form-group label { display: block; font-size: 13px; font-weight: 500; color: var(--text-dim); margin-bottom: 6px; }
+  .form-group input, .form-group select, .form-group textarea {
+    width: 100%; padding: 11px 14px; font-size: 14px; font-family: inherit;
+    border: 1px solid var(--border-strong); border-radius: 10px; background: var(--bg);
+    color: var(--text); transition: border-color 0.2s ease, box-shadow 0.2s ease; resize: vertical;
+  }
+  .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+    outline: none; border-color: var(--teal); box-shadow: 0 0 0 3px rgba(25,116,138,0.12);
+  }
+  .btn-primary {
+    width: 100%; padding: 12px; background: var(--navy); color: #fff;
+    border: none; border-radius: 10px; font-size: 14.5px; font-weight: 600;
+    font-family: inherit; cursor: pointer; transition: background 0.2s ease;
+  }
+  .btn-primary:hover { background: var(--teal); }
+  .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+  .btn-ghost {
+    padding: 8px 14px; background: transparent; color: var(--text-dim);
+    border: 1px solid var(--border-strong); border-radius: 8px; font-size: 13px;
+    font-family: inherit; cursor: pointer; transition: all 0.2s ease;
+  }
+  .btn-ghost:hover { border-color: var(--teal); color: var(--teal); }
+  .btn-danger {
+    padding: 8px 14px; background: transparent; color: var(--danger);
+    border: 1px solid rgba(176,57,47,0.3); border-radius: 8px; font-size: 13px;
+    font-family: inherit; cursor: pointer; transition: all 0.2s ease;
+  }
+  .btn-danger:hover { background: rgba(176,57,47,0.08); }
+  .status-line { font-size: 13px; margin-top: 10px; min-height: 18px; text-align: center; }
+  .status-line.err { color: var(--danger); }
+  .status-line.ok { color: var(--mint-deep); }
+
+  /* ---- App shell ---- */
+  #appShell { display: none; }
+  #appShell.show { display: block; }
+  header.app-header {
+    background: var(--navy); color: #fff; padding: 12px 24px;
+    display: flex; align-items: center; gap: 20px;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 15px; }
+  .brand-mark {
+    width: 26px; height: 26px; border-radius: 7px; background: var(--mint);
+    display: flex; align-items: center; justify-content: center; color: var(--navy); font-weight: 700; font-size: 12px;
+  }
+  .hotel-selector {
+    background: rgba(255,255,255,0.1); color: #fff; border: 1px solid rgba(255,255,255,0.2);
+    padding: 6px 12px; border-radius: 8px; font-size: 13px; font-family: inherit; cursor: pointer;
+  }
+  .hotel-selector option { color: #000; }
+  .header-spacer { flex: 1; }
+  .header-account { font-size: 13px; color: rgba(255,255,255,0.7); }
+  .signout-btn {
+    background: transparent; color: rgba(255,255,255,0.7); border: none;
+    font-size: 13px; cursor: pointer; padding: 4px 8px;
+    font-family: inherit;
+  }
+  .signout-btn:hover { color: #fff; }
+
+  /* ---- Tab nav ---- */
+  nav.tabs {
+    background: var(--bg-card); border-bottom: 1px solid var(--border);
+    padding: 0 24px; display: flex; gap: 4px; overflow-x: auto;
+  }
+  .tab-btn {
+    background: transparent; border: none; padding: 14px 16px; font-size: 14px;
+    color: var(--text-dim); font-weight: 500; cursor: pointer; position: relative;
+    font-family: inherit; white-space: nowrap;
+    transition: color 0.2s ease;
+  }
+  .tab-btn:hover { color: var(--navy); }
+  .tab-btn.active { color: var(--navy); font-weight: 600; }
+  .tab-btn.active::after {
+    content: ''; position: absolute; left: 12px; right: 12px; bottom: 0; height: 2px;
+    background: var(--teal); border-radius: 2px 2px 0 0;
+  }
+  .tab-btn .badge {
+    display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 100px;
+    background: var(--mint); color: var(--navy); font-size: 11px; font-weight: 600;
+  }
+
+  /* ---- Content shell ---- */
+  main.content { padding: 24px; max-width: 1080px; margin: 0 auto; }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  .panel-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 20px; }
+  .panel-head h2 { font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+  .panel-head p { font-size: 14px; color: var(--text-dim); margin-top: 4px; }
+
+  /* ---- Overview stats grid ---- */
+  .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 24px; }
+  @media (max-width: 640px) { .stats-grid { grid-template-columns: 1fr; } }
+  .stat-card {
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px;
+  }
+  .stat-card .label { font-size: 12px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; }
+  .stat-card .value { font-size: 28px; font-weight: 700; margin-top: 6px; letter-spacing: -0.02em; }
+  .stat-card.urgent .value { color: var(--danger); }
+  .stat-card.approve .value { color: var(--amber); }
+  .stat-card.auto .value { color: var(--mint-deep); }
+
+  /* ---- Message queue ---- */
+  .msg-list { display: flex; flex-direction: column; gap: 10px; }
+  .msg-item {
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+  .msg-item:hover { border-color: var(--border-strong); }
+  .msg-item.pending { border-left: 3px solid var(--amber); }
+  .msg-item.urgent-item { border-left: 3px solid var(--danger); background: rgba(176,57,47,0.02); }
+  .msg-meta { display: flex; gap: 10px; align-items: center; font-size: 12px; color: var(--text-faint); margin-bottom: 8px; flex-wrap: wrap; }
+  .msg-tier {
+    padding: 2px 8px; border-radius: 5px; font-size: 10px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.03em;
+  }
+  .msg-tier.auto { background: rgba(25,116,138,0.14); color: var(--teal); }
+  .msg-tier.needs_approval { background: rgba(217,119,6,0.15); color: var(--amber); }
+  .msg-tier.urgent { background: rgba(176,57,47,0.14); color: var(--danger); }
+  .msg-channel { text-transform: uppercase; opacity: 0.6; }
+  .msg-lang { padding: 1px 7px; border-radius: 4px; background: var(--bg-raised); font-weight: 500; text-transform: uppercase; font-size: 10.5px; }
+  .msg-guest {
+    font-size: 14.5px; color: var(--text); margin-bottom: 8px; padding: 8px 0;
+  }
+  .msg-draft {
+    background: var(--bg-raised); border-radius: 10px; padding: 12px 14px; margin: 10px 0;
+    font-size: 13.5px; color: var(--text-dim);
+  }
+  .msg-draft-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-faint); margin-bottom: 4px; font-weight: 600; }
+  .msg-actions { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+  .edit-drawer {
+    display: none; margin-top: 12px; background: var(--bg-raised); padding: 14px;
+    border-radius: 10px;
+  }
+  .edit-drawer.open { display: block; }
+  .edit-drawer textarea { min-height: 90px; margin-bottom: 10px; }
+
+  /* ---- Knowledge / Operators lists ---- */
+  .list-empty { padding: 40px 24px; text-align: center; color: var(--text-faint); font-size: 14px; background: var(--bg-raised); border-radius: 12px; }
+  .kb-item, .op-item {
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px;
+    margin-bottom: 10px;
+  }
+  .kb-item .q { font-size: 14.5px; font-weight: 600; margin-bottom: 4px; }
+  .kb-item .a { font-size: 13.5px; color: var(--text-dim); margin-bottom: 8px; }
+  .kb-item .kw { font-size: 12px; color: var(--text-faint); }
+  .kb-item .kw span { display: inline-block; background: var(--bg-raised); padding: 1px 8px; border-radius: 4px; margin-right: 4px; }
+  .op-item .op-head { display: flex; gap: 8px; align-items: center; margin-bottom: 4px; flex-wrap: wrap; }
+  .op-item .name { font-size: 14.5px; font-weight: 600; }
+  .op-item .partner-tag {
+    background: var(--mint); color: var(--navy); font-size: 10.5px;
+    padding: 1px 8px; border-radius: 4px; font-weight: 600; text-transform: uppercase;
+  }
+  .op-item .meta { font-size: 12.5px; color: var(--text-dim); }
+  .item-actions { text-align: right; margin-top: 8px; }
+
+  .add-form {
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 20px; margin-bottom: 20px;
+  }
+  .add-form h3 { font-size: 15px; font-weight: 600; margin-bottom: 14px; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 560px) { .form-row { grid-template-columns: 1fr; } }
+  .checkbox-row { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; font-size: 13.5px; color: var(--text-dim); }
+  .checkbox-row input[type="checkbox"] { width: auto; }
+</style>
+</head>
+<body>
+
+<!-- Login screen -->
+<div id="loginScreen">
+  <div class="login-card">
+    <h1>Sign in</h1>
+    <p class="sub">Access your Ezicon dashboard</p>
+    <div class="form-group">
+      <label for="loginEmail">Email</label>
+      <input type="email" id="loginEmail" placeholder="you@yourhotel.com" autocomplete="email">
+    </div>
+    <div class="form-group">
+      <label for="loginPassword">Password</label>
+      <input type="password" id="loginPassword" placeholder="Your password" autocomplete="current-password">
+    </div>
+    <button class="btn-primary" id="loginBtn" onclick="handleLogin()">Sign in</button>
+    <p class="status-line" id="loginStatus"></p>
+    <p style="text-align: center; margin-top: 20px; font-size: 13.5px; color: var(--text-dim);">
+      Don't have an account? <a href="signup.html" style="color: var(--teal); font-weight: 500;">Create one</a>
+    </p>
+  </div>
+</div>
+
+<!-- App -->
+<div id="appShell">
+  <header class="app-header">
+    <div class="brand">
+      <div class="brand-mark">E</div>
+      <span>Ezicon</span>
+    </div>
+    <select class="hotel-selector" id="hotelSelector"></select>
+    <div class="header-spacer"></div>
+    <div class="header-account" id="headerEmail"></div>
+    <button class="signout-btn" onclick="handleSignout()">Sign out</button>
+  </header>
+
+  <nav class="tabs">
+    <button class="tab-btn active" data-tab="overview">Overview</button>
+    <button class="tab-btn" data-tab="queue">Message queue<span class="badge" id="queueBadge" style="display:none;">0</span></button>
+    <button class="tab-btn" data-tab="knowledge">Knowledge base</button>
+    <button class="tab-btn" data-tab="operators">Operators</button>
+    <button class="tab-btn" data-tab="settings">Settings</button>
+  </nav>
+
+  <main class="content">
+    <!-- Overview -->
+    <section class="tab-panel active" id="tab-overview">
+      <div class="panel-head">
+        <div>
+          <h2>Overview</h2>
+          <p>Last 24 hours of concierge activity</p>
+        </div>
+        <button class="btn-ghost" onclick="loadQueue()">↻ Refresh</button>
+      </div>
+      <div class="stats-grid" id="statsGrid">
+        <div class="stat-card auto"><div class="label">Auto answered</div><div class="value" id="stat-auto">—</div></div>
+        <div class="stat-card approve"><div class="label">Needs approval</div><div class="value" id="stat-approve">—</div></div>
+        <div class="stat-card urgent"><div class="label">Urgent</div><div class="value" id="stat-urgent">—</div></div>
+      </div>
+      <div id="overviewRecent"></div>
+    </section>
+
+    <!-- Queue -->
+    <section class="tab-panel" id="tab-queue">
+      <div class="panel-head">
+        <div>
+          <h2>Message queue</h2>
+          <p>Drafts awaiting your approval and urgent items needing attention</p>
+        </div>
+        <button class="btn-ghost" onclick="loadQueue()">↻ Refresh</button>
+      </div>
+      <div class="msg-list" id="queueList"></div>
+    </section>
+
+    <!-- Knowledge base -->
+    <section class="tab-panel" id="tab-knowledge">
+      <div class="panel-head">
+        <div>
+          <h2>Knowledge base</h2>
+          <p>FAQ answers your concierge can send automatically without approval</p>
+        </div>
+      </div>
+      <div class="add-form">
+        <h3>Add a new answer</h3>
+        <div class="form-group">
+          <label for="kbQ">Question</label>
+          <input type="text" id="kbQ" placeholder="e.g. What time is checkout?">
+        </div>
+        <div class="form-group">
+          <label for="kbA">Answer</label>
+          <textarea id="kbA" placeholder="e.g. Checkout is at 11:00 AM. Late checkout available until 1 PM for $20."></textarea>
+        </div>
+        <div class="form-group">
+          <label for="kbKw">Keywords (comma-separated, for matching guest messages)</label>
+          <input type="text" id="kbKw" placeholder="checkout, check out, leave, departure">
+        </div>
+        <button class="btn-primary" style="width: auto; padding: 10px 22px;" onclick="addKnowledge()">Add answer</button>
+        <p class="status-line" id="kbStatus"></p>
+      </div>
+      <div id="kbList"></div>
+    </section>
+
+    <!-- Operators -->
+    <section class="tab-panel" id="tab-operators">
+      <div class="panel-head">
+        <div>
+          <h2>Local operators</h2>
+          <p>Partnered activity providers get priority in itinerary recommendations</p>
+        </div>
+      </div>
+      <div class="add-form">
+        <h3>Add operator</h3>
+        <div class="form-group">
+          <label for="opName">Name</label>
+          <input type="text" id="opName" placeholder="e.g. Mnemba Snorkeling Tours">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="opCat">Category</label>
+            <select id="opCat">
+              <option value="snorkel">Snorkeling</option>
+              <option value="safari">Safari</option>
+              <option value="culture">Culture / heritage</option>
+              <option value="food">Food / dining</option>
+              <option value="spa">Spa / wellness</option>
+              <option value="nightlife">Nightlife</option>
+              <option value="transport">Transport</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="opPrice">Price per person (USD)</label>
+            <input type="number" id="opPrice" placeholder="55" step="1">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="opTier">Tier (for safari — matches property level)</label>
+            <select id="opTier">
+              <option value="">—</option>
+              <option value="low">Low (budget)</option>
+              <option value="mid">Mid</option>
+              <option value="high">High (luxury)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="opDays">Duration (days)</label>
+            <input type="number" id="opDays" value="1" min="1">
+          </div>
+        </div>
+        <div class="checkbox-row">
+          <input type="checkbox" id="opPartner">
+          <label for="opPartner">This is a partnered operator (gets priority)</label>
+        </div>
+        <button class="btn-primary" style="width: auto; padding: 10px 22px;" onclick="addOperator()">Add operator</button>
+        <p class="status-line" id="opStatus"></p>
+      </div>
+      <div id="opList"></div>
+    </section>
+
+    <!-- Settings -->
+    <section class="tab-panel" id="tab-settings">
+      <div class="panel-head">
+        <div>
+          <h2>Property settings</h2>
+          <p>Branding, plan, and how the concierge presents itself to guests</p>
+        </div>
+      </div>
+      <div class="add-form">
+        <div class="form-group">
+          <label for="setName">Property name</label>
+          <input type="text" id="setName">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="setType">Property type</label>
+            <select id="setType">
+              <option value="hostel">Hostel or backpackers</option>
+              <option value="guesthouse">Guesthouse or B&B</option>
+              <option value="serviced">Serviced apartment or short stay</option>
+              <option value="boutique">Boutique or mid-range hotel</option>
+              <option value="luxury">Luxury hotel or resort</option>
+              <option value="beach">Beach lodge or bungalow</option>
+              <option value="safari">Safari camp or lodge</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="setPlan">Plan</label>
+            <select id="setPlan">
+              <option value="free">Free</option>
+              <option value="standard">Standard</option>
+              <option value="premium">Premium</option>
+              <option value="trial">Trial</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="setColor">Primary color</label>
+            <input type="color" id="setColor" value="#0a2e4a">
+          </div>
+          <div class="form-group">
+            <label for="setAccent">Accent color</label>
+            <input type="color" id="setAccent" value="#a6f5c0">
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="setTagline">Tagline (shown on branded chat page)</label>
+          <input type="text" id="setTagline" placeholder="Your stay, your way">
+        </div>
+        <div class="form-group">
+          <label for="setLogo">Logo URL (optional)</label>
+          <input type="url" id="setLogo" placeholder="https://yourhotel.com/logo.png">
+        </div>
+        <div class="checkbox-row">
+          <input type="checkbox" id="setVoice">
+          <label for="setVoice">Enable voice replies (Premium plan required)</label>
+        </div>
+        <button class="btn-primary" style="width: auto; padding: 10px 22px;" onclick="saveSettings()">Save changes</button>
+        <p class="status-line" id="setStatus"></p>
+      </div>
+
+      <div class="add-form" style="margin-top: 20px;">
+        <h3>Install your widget</h3>
+        <p style="font-size: 13.5px; color: var(--text-dim); margin-bottom: 12px;">Copy this into your website's HTML, anywhere before <code>&lt;/body&gt;</code>.</p>
+        <div style="background: var(--navy); color: var(--mint); padding: 12px 14px; border-radius: 8px; font-family: monospace; font-size: 12px; overflow-x: auto; white-space: nowrap;" id="embedCode">Loading...</div>
+        <p style="font-size: 13px; color: var(--text-dim); margin-top: 12px;">
+          Your standalone chat page: <a id="chatLink" href="#" target="_blank" style="color: var(--teal);">Loading...</a>
+        </p>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+  // ---- Config + state ----
+  const API_BASE = location.origin; // dashboard served from same origin as backend
+  let TOKEN = localStorage.getItem('ezicon_token');
+  let EMAIL = localStorage.getItem('ezicon_email');
+  let HOTELS = [];
+  let CURRENT_HOTEL_ID = localStorage.getItem('ezicon_hotel_id');
+  let CURRENT_HOTEL = null;
+
+  // ---- Auth flow ----
+  async function handleLogin() {
+    const btn = document.getElementById('loginBtn');
+    const status = document.getElementById('loginStatus');
+    const email = document.getElementById('loginEmail').value.trim();
+    const password = document.getElementById('loginPassword').value;
+    if (!email || !password) {
+      status.className = 'status-line err';
+      status.textContent = 'Enter your email and password.';
+      return;
+    }
+    btn.disabled = true; btn.textContent = 'Signing in...';
+    status.textContent = '';
+    try {
+      const res = await fetch(`${API_BASE}/auth/signin`, {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({email, password}),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Sign in failed');
+      TOKEN = data.token;
+      EMAIL = email;
+      localStorage.setItem('ezicon_token', TOKEN);
+      localStorage.setItem('ezicon_email', email);
+      await bootApp();
+    } catch (e) {
+      status.className = 'status-line err';
+      status.textContent = e.message;
+    } finally {
+      btn.disabled = false; btn.textContent = 'Sign in';
+    }
+  }
+
+  function handleSignout() {
+    localStorage.removeItem('ezicon_token');
+    localStorage.removeItem('ezicon_email');
+    localStorage.removeItem('ezicon_hotel_id');
+    TOKEN = null; EMAIL = null; CURRENT_HOTEL_ID = null;
+    document.getElementById('appShell').classList.remove('show');
+    document.getElementById('loginScreen').classList.add('show');
+  }
+
+  // Authenticated fetch wrapper — auto-signs-out on 401 so an expired token
+  // doesn't leave the UI stuck in a broken half-loaded state.
+  async function api(path, opts = {}) {
+    const res = await fetch(`${API_BASE}${path}`, {
+      ...opts,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${TOKEN}`,
+        ...(opts.headers || {}),
+      },
+    });
+    if (res.status === 401) { handleSignout(); throw new Error('Session expired'); }
+    return res;
+  }
+
+  // ---- Boot: fetch hotels, select current, load overview ----
+  async function bootApp() {
+    document.getElementById('loginScreen').classList.remove('show');
+    document.getElementById('appShell').classList.add('show');
+    document.getElementById('headerEmail').textContent = EMAIL || '';
+    try {
+      const res = await api('/dashboard/hotels');
+      const data = await res.json();
+      HOTELS = data.hotels || [];
+      if (!HOTELS.length) {
+        document.querySelector('main.content').innerHTML =
+          '<div class="list-empty">No properties yet. <a href="signup.html" style="color: var(--teal);">Add one</a>.</div>';
+        return;
+      }
+      // If saved hotel id no longer valid, fall back to first
+      if (!CURRENT_HOTEL_ID || !HOTELS.find(h => h.id === CURRENT_HOTEL_ID)) {
+        CURRENT_HOTEL_ID = HOTELS[0].id;
+        localStorage.setItem('ezicon_hotel_id', CURRENT_HOTEL_ID);
+      }
+      CURRENT_HOTEL = HOTELS.find(h => h.id === CURRENT_HOTEL_ID);
+      renderHotelSelector();
+      switchTab('overview');
+      loadQueue();
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  function renderHotelSelector() {
+    const sel = document.getElementById('hotelSelector');
+    sel.innerHTML = HOTELS.map(h => `<option value="${h.id}" ${h.id === CURRENT_HOTEL_ID ? 'selected' : ''}>${escapeHtml(h.name)}</option>`).join('');
+    sel.onchange = (e) => {
+      CURRENT_HOTEL_ID = e.target.value;
+      CURRENT_HOTEL = HOTELS.find(h => h.id === CURRENT_HOTEL_ID);
+      localStorage.setItem('ezicon_hotel_id', CURRENT_HOTEL_ID);
+      // Reload the active tab's data for the new hotel
+      const activeTab = document.querySelector('.tab-btn.active')?.dataset.tab;
+      switchTab(activeTab || 'overview');
+      loadQueue();
+    };
+  }
+
+  // ---- Tabs ----
+  function switchTab(name) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === `tab-${name}`));
+    if (name === 'knowledge') loadKnowledge();
+    else if (name === 'operators') loadOperators();
+    else if (name === 'settings') loadSettings();
+    else if (name === 'queue') loadQueue();
+    else if (name === 'overview') loadQueue();
+  }
+  document.querySelectorAll('.tab-btn').forEach(b => b.addEventListener('click', () => switchTab(b.dataset.tab)));
+
+  // ---- Queue + overview ----
+  async function loadQueue() {
+    if (!CURRENT_HOTEL_ID) return;
+    try {
+      const res = await api(`/dashboard/hotels/${CURRENT_HOTEL_ID}/queue`);
+      const data = await res.json();
+      // Update stat cards
+      const counts = data.counts || {};
+      document.getElementById('stat-auto').textContent = counts.auto || 0;
+      document.getElementById('stat-approve').textContent = counts.needs_approval || 0;
+      document.getElementById('stat-urgent').textContent = counts.urgent || 0;
+      // Queue badge count for pending approvals + urgent
+      const badgeCount = (counts.needs_approval || 0) + (counts.urgent || 0);
+      const badge = document.getElementById('queueBadge');
+      badge.textContent = badgeCount;
+      badge.style.display = badgeCount ? 'inline-block' : 'none';
+      renderQueue(data.messages || []);
+      renderOverviewRecent(data.messages || []);
+    } catch (e) { console.error(e); }
+  }
+
+  function renderQueue(messages) {
+    const list = document.getElementById('queueList');
+    // Only show items that need attention (pending approval or urgent),
+    // plus the most recent 10 auto-answered ones as reference.
+    const pending = messages.filter(m => m.approval_status === 'pending' || m.tier === 'urgent');
+    if (!pending.length) {
+      list.innerHTML = '<div class="list-empty">No messages awaiting attention 🎉<br><span style="font-size: 12.5px; opacity: 0.7;">Auto-answered messages appear in the Overview tab</span></div>';
+      return;
+    }
+    list.innerHTML = pending.map(m => renderMessage(m)).join('');
+  }
+
+  function renderOverviewRecent(messages) {
+    const el = document.getElementById('overviewRecent');
+    const recent = messages.slice(0, 8);
+    if (!recent.length) {
+      el.innerHTML = '<div class="list-empty">No messages yet. Your concierge will start showing activity here once guests begin using it.</div>';
+      return;
+    }
+    el.innerHTML = `<h3 style="font-size: 14px; font-weight: 600; margin: 20px 0 12px; color: var(--text-dim);">Recent activity</h3>` +
+      recent.map(m => renderMessage(m, true)).join('');
+  }
+
+  function renderMessage(m, compact = false) {
+    const isPending = m.approval_status === 'pending';
+    const isUrgent = m.tier === 'urgent';
+    const cls = isUrgent ? 'urgent-item' : (isPending ? 'pending' : '');
+    const timeStr = new Date(m.created_at).toLocaleString([], {month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'});
+    const draftBlock = m.approval_draft ? `
+      <div class="msg-draft">
+        <div class="msg-draft-label">Suggested reply</div>
+        ${escapeHtml(m.approval_draft)}
+      </div>` : '';
+    const actions = isPending ? `
+      <div class="msg-actions">
+        <button class="btn-primary" style="width: auto; padding: 8px 16px; font-size: 13px;" onclick="approveMessage('${m.id}')">✓ Send as-is</button>
+        <button class="btn-ghost" onclick="toggleEdit('${m.id}')">Edit before sending</button>
+        <button class="btn-danger" onclick="dismissMessage('${m.id}')">Dismiss</button>
+      </div>
+      <div class="edit-drawer" id="edit-${m.id}">
+        <textarea id="edit-text-${m.id}">${escapeHtml(m.approval_draft || '')}</textarea>
+        <button class="btn-primary" style="width: auto; padding: 8px 16px; font-size: 13px;" onclick="approveMessage('${m.id}', true)">Send edited reply</button>
+      </div>` : '';
+    return `
+      <div class="msg-item ${cls}">
+        <div class="msg-meta">
+          <span class="msg-tier ${m.tier || 'auto'}">${(m.tier || 'auto').replace('_', ' ')}</span>
+          <span class="msg-channel">${m.channel || 'web'}</span>
+          ${m.guest_language ? `<span class="msg-lang">${m.guest_language}</span>` : ''}
+          <span>${timeStr}</span>
+        </div>
+        <div class="msg-guest">${escapeHtml(m.content_original)}</div>
+        ${!compact ? draftBlock : ''}
+        ${!compact ? actions : ''}
+      </div>`;
+  }
+
+  function toggleEdit(id) {
+    document.getElementById(`edit-${id}`).classList.toggle('open');
+  }
+
+  async function approveMessage(id, edited = false) {
+    const body = {};
+    if (edited) body.editedText = document.getElementById(`edit-text-${id}`).value;
+    try {
+      await api(`/dashboard/messages/${id}/approve`, {method: 'POST', body: JSON.stringify(body)});
+      loadQueue();
+    } catch (e) { alert('Failed to approve: ' + e.message); }
+  }
+
+  async function dismissMessage(id) {
+    if (!confirm('Dismiss this message without replying?')) return;
+    try {
+      await api(`/dashboard/messages/${id}/dismiss`, {method: 'POST'});
+      loadQueue();
+    } catch (e) { alert('Failed to dismiss: ' + e.message); }
+  }
+
+  // ---- Knowledge base ----
+  async function loadKnowledge() {
+    try {
+      const res = await api(`/dashboard/hotels/${CURRENT_HOTEL_ID}/knowledge`);
+      const data = await res.json();
+      const list = document.getElementById('kbList');
+      if (!data.entries.length) {
+        list.innerHTML = '<div class="list-empty">No entries yet. Add answers for common guest questions so the concierge can respond instantly.</div>';
+        return;
+      }
+      list.innerHTML = data.entries.map(e => `
+        <div class="kb-item">
+          <div class="q">${escapeHtml(e.question)}</div>
+          <div class="a">${escapeHtml(e.answer)}</div>
+          ${e.keywords && e.keywords.length ? `<div class="kw">${e.keywords.map(k => `<span>${escapeHtml(k)}</span>`).join('')}</div>` : ''}
+          <div class="item-actions"><button class="btn-danger" onclick="deleteKnowledge('${e.id}')">Delete</button></div>
+        </div>`).join('');
+    } catch (e) { console.error(e); }
+  }
+
+  async function addKnowledge() {
+    const status = document.getElementById('kbStatus');
+    const question = document.getElementById('kbQ').value.trim();
+    const answer = document.getElementById('kbA').value.trim();
+    const keywords = document.getElementById('kbKw').value.split(',').map(k => k.trim()).filter(Boolean);
+    if (!question || !answer) {
+      status.className = 'status-line err';
+      status.textContent = 'Question and answer are both required.';
+      return;
+    }
+    try {
+      const res = await api(`/dashboard/hotels/${CURRENT_HOTEL_ID}/knowledge`, {
+        method: 'POST', body: JSON.stringify({question, answer, keywords}),
+      });
+      if (!res.ok) throw new Error('Save failed');
+      status.className = 'status-line ok';
+      status.textContent = 'Added.';
+      document.getElementById('kbQ').value = '';
+      document.getElementById('kbA').value = '';
+      document.getElementById('kbKw').value = '';
+      loadKnowledge();
+      setTimeout(() => status.textContent = '', 2000);
+    } catch (e) {
+      status.className = 'status-line err';
+      status.textContent = e.message;
+    }
+  }
+
+  async function deleteKnowledge(id) {
+    if (!confirm('Delete this knowledge base entry?')) return;
+    try {
+      await api(`/dashboard/knowledge/${id}`, {method: 'DELETE'});
+      loadKnowledge();
+    } catch (e) { alert('Delete failed: ' + e.message); }
+  }
+
+  // ---- Operators ----
+  async function loadOperators() {
+    try {
+      const res = await api(`/dashboard/hotels/${CURRENT_HOTEL_ID}/operators`);
+      const data = await res.json();
+      const list = document.getElementById('opList');
+      if (!data.operators.length) {
+        list.innerHTML = '<div class="list-empty">No operators yet. Add your partnered tour and activity providers so the concierge can build itineraries.</div>';
+        return;
+      }
+      list.innerHTML = data.operators.map(o => `
+        <div class="op-item">
+          <div class="op-head">
+            <span class="name">${escapeHtml(o.name)}</span>
+            ${o.partnered ? '<span class="partner-tag">Partner</span>' : ''}
+            <span style="font-size: 12px; color: var(--text-faint); text-transform: uppercase;">${o.category}</span>
+          </div>
+          <div class="meta">${o.price ? '$' + o.price + ' pp' : 'No price set'} · ${o.duration_days || 1} day${o.duration_days === 1 ? '' : 's'}${o.tier ? ' · ' + o.tier + ' tier' : ''}</div>
+          <div class="item-actions"><button class="btn-danger" onclick="deleteOperator('${o.id}')">Delete</button></div>
+        </div>`).join('');
+    } catch (e) { console.error(e); }
+  }
+
+  async function addOperator() {
+    const status = document.getElementById('opStatus');
+    const name = document.getElementById('opName').value.trim();
+    const category = document.getElementById('opCat').value;
+    const price = parseFloat(document.getElementById('opPrice').value) || null;
+    const tier = document.getElementById('opTier').value || null;
+    const durationDays = parseInt(document.getElementById('opDays').value) || 1;
+    const partnered = document.getElementById('opPartner').checked;
+    if (!name) {
+      status.className = 'status-line err';
+      status.textContent = 'Operator name is required.';
+      return;
+    }
+    try {
+      const res = await api(`/dashboard/hotels/${CURRENT_HOTEL_ID}/operators`, {
+        method: 'POST',
+        body: JSON.stringify({name, category, tags: [category], price, tier, durationDays, partnered}),
+      });
+      if (!res.ok) throw new Error('Save failed');
+      status.className = 'status-line ok';
+      status.textContent = 'Added.';
+      ['opName', 'opPrice', 'opDays'].forEach(id => document.getElementById(id).value = id === 'opDays' ? '1' : '');
+      document.getElementById('opPartner').checked = false;
+      loadOperators();
+      setTimeout(() => status.textContent = '', 2000);
+    } catch (e) {
+      status.className = 'status-line err';
+      status.textContent = e.message;
+    }
+  }
+
+  async function deleteOperator(id) {
+    if (!confirm('Delete this operator?')) return;
+    try {
+      await api(`/dashboard/operators/${id}`, {method: 'DELETE'});
+      loadOperators();
+    } catch (e) { alert('Delete failed: ' + e.message); }
+  }
+
+  // ---- Settings ----
+  function loadSettings() {
+    if (!CURRENT_HOTEL) return;
+    const h = CURRENT_HOTEL;
+    document.getElementById('setName').value = h.name || '';
+    document.getElementById('setType').value = h.property_type || 'boutique';
+    document.getElementById('setPlan').value = h.plan || 'free';
+    document.getElementById('setVoice').checked = !!h.voice_reply_enabled;
+    const b = h.branding || {};
+    document.getElementById('setColor').value = b.primaryColor || '#0a2e4a';
+    document.getElementById('setAccent').value = b.accentColor || '#a6f5c0';
+    document.getElementById('setTagline').value = b.tagline || '';
+    document.getElementById('setLogo').value = b.logoUrl || '';
+    // Embed code + chat link
+    const snippet = `<script src="${API_BASE}/widget.js" data-hotel-id="${h.id}" async><\/script>`;
+    document.getElementById('embedCode').textContent = snippet;
+    const chatLink = document.getElementById('chatLink');
+    chatLink.href = `${API_BASE}/chat/${h.id}`;
+    chatLink.textContent = `${API_BASE}/chat/${h.id}`;
+  }
+
+  async function saveSettings() {
+    const status = document.getElementById('setStatus');
+    const body = {
+      name: document.getElementById('setName').value.trim(),
+      propertyType: document.getElementById('setType').value,
+      plan: document.getElementById('setPlan').value,
+      voiceReplyEnabled: document.getElementById('setVoice').checked,
+      branding: {
+        primaryColor: document.getElementById('setColor').value,
+        accentColor: document.getElementById('setAccent').value,
+        tagline: document.getElementById('setTagline').value.trim(),
+        logoUrl: document.getElementById('setLogo').value.trim(),
+      },
+    };
+    try {
+      const res = await api(`/dashboard/hotels/${CURRENT_HOTEL_ID}`, {method: 'PATCH', body: JSON.stringify(body)});
+      if (!res.ok) throw new Error('Save failed');
+      // Refresh cached hotel record
+      const hres = await api('/dashboard/hotels');
+      const hd = await hres.json();
+      HOTELS = hd.hotels;
+      CURRENT_HOTEL = HOTELS.find(h => h.id === CURRENT_HOTEL_ID);
+      status.className = 'status-line ok';
+      status.textContent = 'Saved.';
+      setTimeout(() => status.textContent = '', 2000);
+    } catch (e) {
+      status.className = 'status-line err';
+      status.textContent = e.message;
+    }
+  }
+
+  // ---- Utility ----
+  function escapeHtml(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  // ---- Init ----
+  if (TOKEN) {
+    bootApp();
+  } else {
+    document.getElementById('loginScreen').classList.add('show');
+  }
+
+  // Enter key on login form
+  document.getElementById('loginPassword').addEventListener('keydown', (e) => { if (e.key === 'Enter') handleLogin(); });
+</script>
+
+</body>
+</html>
