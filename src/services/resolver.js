@@ -21,6 +21,7 @@ const groq = require('./groq');
 const translate = require('./translate');
 const { isUrgent } = require('./escalation');
 const { isItineraryIntent } = require('./itineraryIntent');
+const { isHumanRequest } = require('./humanRequest');
 const { checkLimit, tickUsage, getPlan } = require('./plans');
 
 const TIER_ACK = {
@@ -28,6 +29,7 @@ const TIER_ACK = {
   needs_approval: "Let me check on that for you and get back with confirmation shortly.",
   limit_reached: 'This concierge has reached its message limit for now. Please ask at the front desk.',
   itinerary: "I'd love to help you plan your day! Pick what interests you and I'll put together some options.",
+  human_requested: "Of course — I've let our team know, and someone will join this conversation shortly.",
 };
 
 // Cheap, zero-cost language guess from character script alone — used only for
@@ -79,7 +81,7 @@ async function loadKB(hotelId) {
 // urgent item has no status to change and reappears on every refresh
 // regardless of what staff do with it.
 async function persistMessages({ conversationId, guestMessage, guestMessageEnglish, tier, staffDraft, agentReplyOriginalLang, agentReplyEnglish }) {
-  const needsStatus = tier === 'needs_approval' || tier === 'urgent';
+  const needsStatus = tier === 'needs_approval' || tier === 'urgent' || tier === 'human_requested';
   await query(
     `INSERT INTO messages (id, conversation_id, role, content_original, content_english, tier, approval_status, approval_draft, created_at)
      VALUES ($1, $2, 'guest', $3, $4, $5, $6, $7, NOW())`,
@@ -130,6 +132,27 @@ async function resolveTieredReply({ hotel, conversationId, guestMessage, guestLa
       guestReplyEnglish: TIER_ACK.urgent,
       guestMessageEnglish: gmEn,
       detectedLanguage: guestLanguage || 'en',
+    };
+  }
+
+  // 2a. Explicit request for a human — a preference, not an emergency, so it
+  // gets its own tier rather than being folded into "urgent". Skips the LLM
+  // entirely: no attempt at answering, just an immediate handoff acknowledgment.
+  if (isHumanRequest(guestMessage)) {
+    const targetLang = guestLanguage || guessScriptLanguage(guestMessage) || 'en';
+    const ack = targetLang === 'en' ? TIER_ACK.human_requested : await translate(TIER_ACK.human_requested, targetLang).catch(() => TIER_ACK.human_requested);
+    const gmEn = await toEnglish(guestMessage, targetLang);
+    await persistMessages({
+      conversationId, guestMessage, guestMessageEnglish: gmEn,
+      tier: 'human_requested', agentReplyOriginalLang: ack, agentReplyEnglish: TIER_ACK.human_requested,
+    });
+    await tickUsage(query, hotel.id);
+    return {
+      tier: 'human_requested',
+      guestReplyText: ack,
+      guestReplyEnglish: TIER_ACK.human_requested,
+      guestMessageEnglish: gmEn,
+      detectedLanguage: targetLang,
     };
   }
 
@@ -210,6 +233,24 @@ async function resolveTieredReply({ hotel, conversationId, guestMessage, guestLa
       tier: 'urgent',
       guestReplyText: TIER_ACK.urgent,
       guestReplyEnglish: TIER_ACK.urgent,
+      guestMessageEnglish: gmEn,
+      detectedLanguage: finalLang,
+    };
+  }
+
+  // Caught here for any phrasing/language the free regex missed — same
+  // reasoning as the itinerary branch below.
+  if (result.tier === 'human_requested') {
+    const ack = finalLang === 'en' ? TIER_ACK.human_requested : await translate(TIER_ACK.human_requested, finalLang);
+    await persistMessages({
+      conversationId, guestMessage, guestMessageEnglish: gmEn,
+      tier: 'human_requested', agentReplyOriginalLang: ack, agentReplyEnglish: TIER_ACK.human_requested,
+    });
+    await tickUsage(query, hotel.id);
+    return {
+      tier: 'human_requested',
+      guestReplyText: ack,
+      guestReplyEnglish: TIER_ACK.human_requested,
       guestMessageEnglish: gmEn,
       detectedLanguage: finalLang,
     };

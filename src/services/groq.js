@@ -90,6 +90,7 @@ async function classifyAndDraft({ guestMessage, hotelName, knowledgeBase }) {
 
 Rules for classification:
 - "urgent": complaints, safety issues, broken/leaking things, health issues, angry sentiment
+- "human_requested": the guest explicitly wants to speak with a real person / staff member / reception instead of continuing with you — in ANY language or phrasing (e.g. "can I talk to someone", "I don't want to talk to a bot", "get me the manager"). This is a preference, not a complaint — don't confuse it with "urgent".
 - "itinerary": the guest wants ideas for things to do, sightseeing, excursions, exploring the area, or activities for themselves/family/partner — in ANY language or phrasing, not just obvious English keywords. This takes priority over "auto" whenever the guest is asking "what can we do" in spirit, even indirectly (e.g. "I want to explore with my wife", "we'd like to go around with the kids").
 - "auto": routine question that can be answered directly from the knowledge base below (checkout time, wifi, hours, amenities)
 - "needs_approval": guest-specific request (upgrade, booking, availability, custom request) — you draft a reply, staff approves
@@ -99,10 +100,10 @@ ${kbContext || '(no entries yet)'}
 
 Formatting rules for "reply": plain conversational text only. NEVER use markdown — no **bold**, no bullet asterisks, no headers, no numbered lists with periods. If listing a few things, write them as a natural sentence or use simple dashes, since this text is shown directly in a plain-text chat bubble that does not render markdown. Keep it to 2-4 sentences; this is a chat reply, not an article.
 
-For "itinerary", leave "reply" empty — the app shows an interactive activity picker instead of a text answer.
+For "itinerary" and "human_requested", leave "reply" empty — the app handles the response itself in both cases.
 
 Respond with valid JSON only, no other text, matching this shape:
-{"tier": "auto" | "needs_approval" | "urgent" | "itinerary", "detectedLanguage": "<ISO 639-1 code>", "reply": "<plain text reply, or empty for urgent/itinerary>"}`;
+{"tier": "auto" | "needs_approval" | "urgent" | "itinerary" | "human_requested", "detectedLanguage": "<ISO 639-1 code>", "reply": "<plain text reply, or empty for urgent/itinerary/human_requested>"}`;
 
   const raw = await chatCompletion({ system, user: guestMessage, temperature: 0.2 });
   try {

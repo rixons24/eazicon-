@@ -58,6 +58,7 @@
   .msg-tier.needs_approval { background: rgba(166,245,192,0.4); color: var(--navy); }
   .msg-tier.urgent { background: rgba(176,57,47,0.14); color: var(--danger); }
   .msg-tier.itinerary { background: rgba(166,245,192,0.4); color: var(--navy); }
+  .msg-tier.human_requested { background: rgba(25,116,138,0.14); color: var(--teal); }
 
   /* ---- In-chat itinerary picker ---- */
   .itinerary-card {
@@ -127,6 +128,14 @@
   .send-btn:disabled { background: var(--text-faint); cursor: not-allowed; }
   .send-btn svg { width: 18px; height: 18px; stroke: #fff; stroke-width: 2.5; fill: none; stroke-linecap: round; stroke-linejoin: round; }
 
+  .human-link-row { text-align: center; padding: 6px 0 0; flex-shrink: 0; }
+  .human-link {
+    background: none; border: none; font-family: inherit; font-size: 11.5px;
+    color: var(--text-faint); cursor: pointer; padding: 4px 8px; text-decoration: underline;
+    text-underline-offset: 2px; transition: color 0.2s ease;
+  }
+  .human-link:hover { color: var(--teal); }
+
   .powered {
     text-align: center; padding: 6px; font-size: 10px; color: var(--text-faint);
     flex-shrink: 0; background: var(--bg); border-top: 1px solid var(--border);
@@ -147,6 +156,9 @@
 
 <div class="messages" id="messages"></div>
 
+<div class="human-link-row">
+  <button class="human-link" onclick="requestHuman()">Prefer to talk to a real person?</button>
+</div>
 <div class="input-row">
   <input type="text" id="input" placeholder="Type in any language..." autofocus>
   <button class="send-btn" id="sendBtn" aria-label="Send">
@@ -237,7 +249,7 @@
   bootstrapChat();
 
   // ---- Message rendering ----
-  const tierLabel = { auto: 'Auto answered', needs_approval: 'Draft for staff', urgent: 'Urgent, escalated', limit_reached: 'Limit reached', itinerary: 'Trip planning' };
+  const tierLabel = { auto: 'Auto answered', needs_approval: 'Draft for staff', urgent: 'Urgent, escalated', limit_reached: 'Limit reached', itinerary: 'Trip planning', human_requested: 'Connecting you to staff' };
 
   // Defense-in-depth: the classification prompt tells the LLM never to use
   // markdown (this widget has no markdown renderer — it's plain textContent),
@@ -283,11 +295,11 @@
   }
 
   // ---- Send ----
-  async function handleSend() {
-    const text = inputEl.value.trim();
-    if (!text) return;
+  // Extracted so both the input box and the "Talk to a human" button funnel
+  // through the exact same request/render pipeline — one place, consistent
+  // behavior, no duplicated fetch logic.
+  async function submitGuestMessage(text) {
     addGuestMessage(text);
-    inputEl.value = '';
     sendBtn.disabled = true;
     showTyping();
 
@@ -330,17 +342,42 @@
     }
   }
 
+  function handleSend() {
+    const text = inputEl.value.trim();
+    if (!text) return;
+    inputEl.value = '';
+    submitGuestMessage(text);
+  }
+
+  // "Talk to a human" — an always-visible escape hatch. Discoverability
+  // matters more here than keyword accuracy across every language, so this
+  // exists alongside (not instead of) the humanRequest.js keyword detector —
+  // most guests who want this will click the button rather than guess the
+  // right phrase to type.
+  function requestHuman() {
+    submitGuestMessage("I'd like to speak with a real person, please.");
+  }
+
   // ---- Itinerary picker: renders as its own chat card, calls the real
   // /itinerary endpoint, and shows the resulting day plan inline. This is
   // the piece that was previously missing — the backend endpoint existed
   // but nothing in conversation ever surfaced it to a guest. ----
   const ITINERARY_OPTIONS = [
     { id: 'snorkel', label: 'Snorkeling', icon: '🤿' },
+    { id: 'diving', label: 'Scuba diving', icon: '🐠' },
     { id: 'safari', label: 'Safari', icon: '🦁' },
+    { id: 'wildlife', label: 'Wildlife & nature', icon: '🐒' },
+    { id: 'spice_tour', label: 'Spice tour', icon: '🌿' },
     { id: 'culture', label: 'Culture & heritage', icon: '🏛️' },
     { id: 'food', label: 'Local food', icon: '🍽️' },
     { id: 'spa', label: 'Spa & relax', icon: '💆' },
     { id: 'nightlife', label: 'Nightlife', icon: '🌙' },
+    { id: 'boat_cruise', label: 'Sunset cruise', icon: '⛵' },
+    { id: 'water_sports', label: 'Water sports', icon: '🏄' },
+    { id: 'fishing', label: 'Deep sea fishing', icon: '🎣' },
+    { id: 'shopping', label: 'Shopping & markets', icon: '🛍️' },
+    { id: 'adventure', label: 'Adventure & hiking', icon: '🧗' },
+    { id: 'family', label: 'Family friendly', icon: '👨‍👩‍👧' },
   ];
 
   function addItineraryPicker() {
