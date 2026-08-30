@@ -7,6 +7,7 @@ const { resolveTieredReply } = require('../services/resolver');
 const groq = require('../services/groq');
 const translate = require('../services/translate');
 const guestProfile = require('../services/guestProfile');
+const discoveryQuestions = require('../services/discoveryQuestions');
 const eleven = require('../services/elevenlabs');
 const audioCache = require('../services/audioCache');
 const { getPlan } = require('../services/plans');
@@ -49,6 +50,26 @@ router.post('/message', loadHotel, async (req, res) => {
       hotelId: req.hotel.id, sessionId: session,
       language: result.detectedLanguage, tier: result.tier, isNewConversation: isNew,
     });
+
+    // On a brand-new conversation, tack on one proactive question (allergies,
+    // special occasion, etc.) if the hotel has one configured — skipped for
+    // urgent/human-requested first messages, where it would feel tone-deaf.
+    if (isNew) {
+      try {
+        const question = await discoveryQuestions.maybeAppendQuestion({
+          hotelId: req.hotel.id, conversationId, tier: result.tier,
+        });
+        if (question) {
+          const lang = result.detectedLanguage;
+          const translatedQ = (!lang || lang === 'en') ? question : await translate(question, lang).catch(() => question);
+          result.guestReplyText = `${result.guestReplyText}\n\n${translatedQ}`;
+          result.guestReplyEnglish = `${result.guestReplyEnglish}\n\n${question}`;
+        }
+      } catch (e) {
+        console.warn('[message] discovery question step failed, continuing without it', e.message);
+      }
+    }
+
     res.json({
       sessionId: session,
       conversationId,
@@ -152,7 +173,7 @@ router.get('/conversation-history', loadHotel, async (req, res) => {
 
   const { rows } = await query(
     `SELECT role, content_original, tier, created_at FROM messages
-     WHERE conversation_id = $1 AND role IN ('guest', 'agent')
+     WHERE conversation_id = $1 AND role IN ('guest', 'agent', 'staff')
      ORDER BY created_at ASC`,
     [convRows[0].id]
   );

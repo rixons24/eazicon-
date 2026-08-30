@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Dashboard — Ezicon</title>
+<title>Dashboard | Ezicon</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/2.44.0/iconfont/tabler-icons.min.css">
@@ -125,7 +125,7 @@
   .tab-panel { display: none; }
   .tab-panel.active { display: block; }
 
-  .panel-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 20px; }
+  .panel-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 16px; flex-wrap: wrap; }
   .panel-head h2 { font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
   .panel-head p { font-size: 14px; color: var(--text-dim); margin-top: 4px; }
 
@@ -207,6 +207,12 @@
   .thread-msg.agent .thread-role, .thread-msg.staff .thread-role { color: var(--mint-deep); }
   .thread-text { font-size: 13.5px; color: var(--text); }
   .thread-translation { font-size: 12px; color: var(--text-faint); font-style: italic; margin-top: 2px; }
+  .thread-reply-row { display: flex; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+  .thread-reply-input {
+    flex: 1; padding: 8px 12px; font-size: 13px; font-family: inherit;
+    border: 1px solid var(--border-strong); border-radius: 8px; background: var(--bg);
+  }
+  .thread-reply-input:focus { outline: none; border-color: var(--teal); }
 
   /* ---- Knowledge / Operators lists ---- */
   .list-empty { padding: 40px 24px; text-align: center; color: var(--text-faint); font-size: 14px; background: var(--bg-raised); border-radius: 12px; }
@@ -244,6 +250,14 @@
   .guest-table tr:last-child td { border-bottom: none; }
   .guest-table .session-id { font-family: monospace; font-size: 11.5px; color: var(--text-faint); }
   .guest-table .lang-tag { background: var(--bg-raised); padding: 2px 8px; border-radius: 4px; font-size: 11.5px; text-transform: uppercase; font-weight: 500; }
+  .guest-table td.num, .guest-table th.num { text-align: center; }
+  .insight-caption { font-size: 12.5px; color: var(--text-faint); margin-top: -8px; margin-bottom: 14px; line-height: 1.5; }
+  .panel-head-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+  .range-select {
+    padding: 8px 12px; font-size: 13px; font-family: inherit; color: var(--text-dim);
+    border: 1px solid var(--border-strong); border-radius: 8px; background: var(--bg-card); cursor: pointer;
+  }
+  .range-select:focus { outline: none; border-color: var(--teal); }
   .item-actions { text-align: right; margin-top: 8px; }
 
   .add-form {
@@ -401,6 +415,23 @@
         <p class="status-line" id="kbStatus"></p>
       </div>
       <div id="kbList"></div>
+
+      <div class="panel-head" style="margin-top: 32px;">
+        <div>
+          <h2 style="font-size: 18px;">Discovery questions</h2>
+          <p>One question the concierge proactively asks in a new guest's first conversation, before something becomes a problem. For example, asking about allergies before a meal goes wrong, not after.</p>
+        </div>
+      </div>
+      <div class="add-form">
+        <h3>Add a question</h3>
+        <div class="form-group">
+          <label for="dqText">Question</label>
+          <input type="text" id="dqText" placeholder="e.g. Any dietary restrictions or allergies we should know about?">
+        </div>
+        <button class="btn-primary" style="width: auto; padding: 10px 22px;" onclick="addDiscoveryQuestion()">Add question</button>
+        <p class="status-line" id="dqStatus"></p>
+      </div>
+      <div id="dqList"></div>
     </section>
 
     <!-- Operators -->
@@ -446,7 +477,7 @@
         </div>
         <div class="form-row">
           <div class="form-group">
-            <label for="opTier">Tier (for safari — matches property level)</label>
+            <label for="opTier">Tier (for safari, matches property level)</label>
             <select id="opTier">
               <option value="">—</option>
               <option value="low">Low (budget)</option>
@@ -474,9 +505,17 @@
       <div class="panel-head">
         <div>
           <h2>Guest insights</h2>
-          <p>Language and behavior patterns across every guest this property has talked to — not names or identity, just what's useful for planning</p>
+          <p>Language and behavior patterns across guests this property has talked to. Not names or identity, just what's useful for planning.</p>
         </div>
-        <button class="btn-ghost" onclick="loadGuestInsights()">↻ Refresh</button>
+        <div class="panel-head-actions">
+          <select id="giRange" class="range-select" onchange="loadGuestInsights()">
+            <option value="week">This week</option>
+            <option value="month" selected>This month</option>
+            <option value="year">This year</option>
+            <option value="all">All time</option>
+          </select>
+          <button class="btn-ghost" onclick="loadGuestInsights()">↻ Refresh</button>
+        </div>
       </div>
 
       <div class="stats-grid" style="grid-template-columns: repeat(3, 1fr);">
@@ -488,17 +527,19 @@
       <div class="insight-columns">
         <div class="add-form">
           <h3>Top languages</h3>
-          <p style="font-size: 12.5px; color: var(--text-faint); margin-top: -8px; margin-bottom: 14px;">Useful for deciding which languages to staff or pre-translate signage for. Language doesn't necessarily indicate nationality — a guest speaking Portuguese could be from Brazil, Portugal, Angola, or elsewhere.</p>
+          <p class="insight-caption">Useful for deciding which languages to staff or pre-translate signage for. Language doesn't necessarily indicate nationality; a guest speaking Portuguese could be from Brazil, Portugal, Angola, or elsewhere.</p>
           <div id="topLanguages"></div>
         </div>
         <div class="add-form">
           <h3>Top requested activities</h3>
-          <p style="font-size: 12.5px; color: var(--text-faint); margin-top: -8px; margin-bottom: 14px;">What guests actually ask the itinerary builder for — useful for deciding which local operators to partner with next.</p>
+          <p class="insight-caption">What guests actually ask the itinerary builder for. Useful for deciding which local operators to partner with next.</p>
           <div id="topInterests"></div>
         </div>
       </div>
 
-      <h3 style="font-size: 15px; font-weight: 600; margin: 24px 0 12px;">Individual guests</h3>
+      <div class="panel-head" style="margin-top: 24px; margin-bottom: 12px;">
+        <h3 style="font-size: 15px; font-weight: 600;">Individual guests</h3>
+      </div>
       <div id="guestTable"></div>
     </section>
 
@@ -542,7 +583,7 @@
           </div>
 
           <div class="form-group">
-            <label for="setWebsite">Pull colors from your website <span style="color: var(--text-faint); font-weight: 400;">(best-effort — looks for a declared theme color)</span></label>
+            <label for="setWebsite">Pull colors from your website <span style="color: var(--text-faint); font-weight: 400;">(best-effort, looks for a declared theme color)</span></label>
             <div style="display: flex; gap: 8px;">
               <input type="url" id="setWebsite" placeholder="https://yourhotel.com" style="flex: 1;">
               <button type="button" class="btn-ghost" style="white-space: nowrap;" onclick="fetchBrandColor()">Fetch color</button>
@@ -574,7 +615,7 @@
             <input type="url" id="setLogo" placeholder="https://yourhotel.com/logo.png" oninput="updatePreview()">
           </div>
           <div class="form-group">
-            <label for="setLogoFile">Or upload a logo directly <span style="color: var(--text-faint); font-weight: 400;">(keep it under ~200KB — stored inline)</span></label>
+            <label for="setLogoFile">Or upload a logo directly <span style="color: var(--text-faint); font-weight: 400;">(keep it under ~200KB, stored inline)</span></label>
             <input type="file" id="setLogoFile" accept="image/*" onchange="handleLogoUpload(event)">
           </div>
 
@@ -730,7 +771,7 @@
   function switchTab(name) {
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
     document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === `tab-${name}`));
-    if (name === 'knowledge') loadKnowledge();
+    if (name === 'knowledge') { loadKnowledge(); loadDiscoveryQuestions(); }
     else if (name === 'operators') loadOperators();
     else if (name === 'guests') loadGuestInsights();
     else if (name === 'settings') loadSettings();
@@ -907,17 +948,13 @@
     el.classList.add('open');
     el.innerHTML = '<div class="thread-loading">Loading conversation...</div>';
     try {
-      if (!threadCache[conversationId]) {
-        const res = await api(`/dashboard/conversations/${conversationId}/messages`);
-        const data = await res.json();
-        threadCache[conversationId] = data.messages || [];
-      }
+      // Always refetch (don't reuse cache) — a stale cached thread would hide
+      // a staff reply someone just sent from another tab, or new guest activity.
+      const res = await api(`/dashboard/conversations/${conversationId}/messages`);
+      const data = await res.json();
+      threadCache[conversationId] = data.messages || [];
       const thread = threadCache[conversationId];
-      if (!thread.length) {
-        el.innerHTML = '<div class="thread-loading">No messages found.</div>';
-        return;
-      }
-      el.innerHTML = thread.map(t => {
+      const threadHtml = thread.length ? thread.map(t => {
         const isGuest = t.role === 'guest';
         const roleLabel = isGuest ? 'Guest' : (t.role === 'staff' ? 'Staff' : 'Concierge');
         const tLine = (t.content_english && t.content_english !== t.content_original)
@@ -928,9 +965,51 @@
             <div class="thread-text">${escapeHtml(t.content_original)}</div>
             ${tLine}
           </div>`;
-      }).join('');
+      }).join('') : '<div class="thread-loading">No messages found.</div>';
+
+      // Reply box: lets staff take over the conversation directly instead of
+      // only ever approving pre-drafted replies. Useful for urgent/human-
+      // requested items (which have no draft to begin with) and any case
+      // where staff just want to say something themselves.
+      el.innerHTML = `
+        <div class="thread-messages">${threadHtml}</div>
+        <div class="thread-reply-row">
+          <input type="text" class="thread-reply-input" id="reply-input-${conversationId}" placeholder="Type a reply, sent in the guest's language automatically">
+          <button class="btn-primary" style="width: auto; padding: 8px 14px; font-size: 13px;" onclick="sendStaffReply('${conversationId}', '${msgId}')">Send</button>
+        </div>
+        <p class="status-line" id="reply-status-${conversationId}" style="text-align: left; margin-top: 4px;"></p>`;
+
+      const input = document.getElementById(`reply-input-${conversationId}`);
+      input.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendStaffReply(conversationId, msgId); });
     } catch (e) {
       el.innerHTML = '<div class="thread-loading">Failed to load conversation.</div>';
+    }
+  }
+
+  async function sendStaffReply(conversationId, msgId) {
+    const input = document.getElementById(`reply-input-${conversationId}`);
+    const status = document.getElementById(`reply-status-${conversationId}`);
+    const text = input.value.trim();
+    if (!text) return;
+    input.disabled = true;
+    status.textContent = 'Sending...';
+    status.className = 'status-line';
+    try {
+      const res = await api(`/dashboard/conversations/${conversationId}/reply`, {
+        method: 'POST', body: JSON.stringify({ text }),
+      });
+      if (!res.ok) throw new Error('Send failed');
+      input.value = '';
+      status.textContent = '';
+      // Refresh the thread in place so the new reply shows immediately
+      delete threadCache[conversationId];
+      document.getElementById(`thread-${msgId}`).classList.remove('open');
+      toggleThread(msgId, conversationId);
+    } catch (e) {
+      status.className = 'status-line err';
+      status.textContent = 'Failed to send. Please try again.';
+    } finally {
+      input.disabled = false;
     }
   }
 
@@ -1054,6 +1133,56 @@
     } catch (e) { alert('Delete failed: ' + e.message); }
   }
 
+  // ---- Discovery questions ----
+  async function loadDiscoveryQuestions() {
+    try {
+      const res = await api(`/dashboard/hotels/${CURRENT_HOTEL_ID}/discovery-questions`);
+      const data = await res.json();
+      const list = document.getElementById('dqList');
+      if (!data.questions.length) {
+        list.innerHTML = '<div class="list-empty">No discovery question set yet. The concierge will only respond reactively until you add one.</div>';
+        return;
+      }
+      list.innerHTML = data.questions.map(q => `
+        <div class="kb-item">
+          <div class="q">${escapeHtml(q.question)}</div>
+          <div class="item-actions"><button class="btn-danger" onclick="deleteDiscoveryQuestion('${q.id}')">Delete</button></div>
+        </div>`).join('');
+    } catch (e) { console.error(e); }
+  }
+
+  async function addDiscoveryQuestion() {
+    const status = document.getElementById('dqStatus');
+    const question = document.getElementById('dqText').value.trim();
+    if (!question) {
+      status.className = 'status-line err';
+      status.textContent = 'Enter a question.';
+      return;
+    }
+    try {
+      const res = await api(`/dashboard/hotels/${CURRENT_HOTEL_ID}/discovery-questions`, {
+        method: 'POST', body: JSON.stringify({question}),
+      });
+      if (!res.ok) throw new Error('Save failed');
+      status.className = 'status-line ok';
+      status.textContent = 'Added.';
+      document.getElementById('dqText').value = '';
+      loadDiscoveryQuestions();
+      setTimeout(() => status.textContent = '', 2000);
+    } catch (e) {
+      status.className = 'status-line err';
+      status.textContent = e.message;
+    }
+  }
+
+  async function deleteDiscoveryQuestion(id) {
+    if (!confirm('Delete this discovery question?')) return;
+    try {
+      await api(`/dashboard/discovery-questions/${id}`, {method: 'DELETE'});
+      loadDiscoveryQuestions();
+    } catch (e) { alert('Delete failed: ' + e.message); }
+  }
+
   // ---- Operators ----
   async function loadOperators() {
     try {
@@ -1119,9 +1248,10 @@
   // ---- Guest insights ----
   async function loadGuestInsights() {
     try {
+      const range = document.getElementById('giRange').value;
       const [insightsRes, guestsRes] = await Promise.all([
-        api(`/dashboard/hotels/${CURRENT_HOTEL_ID}/insights`),
-        api(`/dashboard/hotels/${CURRENT_HOTEL_ID}/guests`),
+        api(`/dashboard/hotels/${CURRENT_HOTEL_ID}/insights?range=${range}`),
+        api(`/dashboard/hotels/${CURRENT_HOTEL_ID}/guests?range=${range}`),
       ]);
       const insights = await insightsRes.json();
       const guestsData = await guestsRes.json();
@@ -1159,7 +1289,7 @@
   function renderGuestTable(guests) {
     const el = document.getElementById('guestTable');
     if (!guests.length) {
-      el.innerHTML = '<div class="list-empty">No guest activity yet — this fills in as guests start chatting.</div>';
+      el.innerHTML = '<div class="list-empty">No guest activity yet. This fills in as guests start chatting.</div>';
       return;
     }
     const rows = guests.map(g => `
@@ -1167,13 +1297,13 @@
         <td class="session-id">${g.guestSession.slice(0, 8)}…</td>
         <td>${g.primaryLanguage ? `<span class="lang-tag">${g.primaryLanguage}</span>` : '—'}</td>
         <td style="text-transform: capitalize;">${INTEREST_NAMES[g.topInterest] || g.topInterest || '—'}</td>
-        <td>${g.messageCount}</td>
-        <td>${g.conversationCount > 1 ? `${g.conversationCount} visits` : '1 visit'}</td>
+        <td class="num">${g.messageCount}</td>
+        <td class="num">${g.conversationCount}</td>
         <td>${new Date(g.lastSeen).toLocaleDateString([], {month: 'short', day: 'numeric'})}</td>
       </tr>`).join('');
     el.innerHTML = `
       <table class="guest-table">
-        <thead><tr><th>Guest</th><th>Language</th><th>Top interest</th><th>Messages</th><th>Visits</th><th>Last seen</th></tr></thead>
+        <thead><tr><th>Guest</th><th>Language</th><th>Top interest</th><th class="num">Messages</th><th class="num">Visits</th><th>Last seen</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>`;
   }
@@ -1237,7 +1367,7 @@
     const file = event.target.files[0];
     if (!file) return;
     if (file.size > 500 * 1024) {
-      if (!confirm(`This image is ${Math.round(file.size / 1024)}KB — quite large to store inline. Continue anyway? (Consider hosting it externally and pasting a URL instead for better performance.)`)) {
+      if (!confirm(`This image is ${Math.round(file.size / 1024)}KB — quite large to store inline. Continue anyway? Consider hosting it externally and pasting a URL instead for better performance.`)) {
         event.target.value = '';
         return;
       }
@@ -1273,14 +1403,14 @@
         document.getElementById('setColor').value = data.color;
         updatePreview();
         status.className = 'status-line ok';
-        status.textContent = `Found ${data.color} — applied above. Feel free to adjust it.`;
+        status.textContent = `Found ${data.color}, applied above. Feel free to adjust it.`;
       } else {
         status.className = 'status-line err';
-        status.textContent = "Couldn't detect a color automatically — please set one manually.";
+        status.textContent = "Couldn't detect a color automatically. Please set one manually.";
       }
     } catch (e) {
       status.className = 'status-line err';
-      status.textContent = "Couldn't reach that site — please set a color manually.";
+      status.textContent = "Couldn't reach that site. Please set a color manually.";
     }
   }
 

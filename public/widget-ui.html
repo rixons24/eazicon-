@@ -173,7 +173,7 @@
   const params = new URLSearchParams(location.search);
   const hotelId = params.get('hotelId');
   if (!hotelId) {
-    document.body.innerHTML = '<p style="padding:24px;text-align:center;color:#b0392f;font-family:sans-serif;">Missing hotelId — check your embed snippet.</p>';
+    document.body.innerHTML = '<p style="padding:24px;text-align:center;color:#b0392f;font-family:sans-serif;">Missing hotelId. Check your embed snippet.</p>';
     throw new Error('missing hotelId');
   }
 
@@ -188,6 +188,11 @@
   const messagesEl = document.getElementById('messages');
   const inputEl = document.getElementById('input');
   const sendBtn = document.getElementById('sendBtn');
+  // Tracks how many PERSISTED messages have been rendered, so the poll below
+  // can tell "genuinely new" (e.g. a staff reply) from messages we already
+  // rendered locally the moment they were sent. The greeting bubble is never
+  // counted here since it's client-only and never saved to the database.
+  let renderedMessageCount = 0;
 
   // ---- Bootstrap: load branding for styling, then either replay the guest's
   // actual conversation history (if this session already has one) or show
@@ -241,12 +246,41 @@
         if (m.role === 'guest') addGuestMessage(m.content_original);
         else addAgentMessage(m.content_original, m.tier);
       });
+      renderedMessageCount = history.length;
     } else {
-      addAgentMessage(`Hi! I'm ${agentName}. Ask me anything about your stay — in any language.`, null);
+      addAgentMessage(`Hi! I'm ${agentName}. Ask me anything about your stay, in any language.`, null);
     }
+
+    startPolling();
   }
 
   bootstrapChat();
+
+  // Lightweight polling for staff replies sent from the dashboard while this
+  // chat is open. No websocket infrastructure exists yet, so this is the
+  // pragmatic stand-in: check every 15s for messages beyond what's already
+  // rendered, and append just those. Keeps running even while the widget
+  // bubble is visually collapsed (the iframe itself stays loaded), so a
+  // reply sent while the guest has the chat closed is there the moment they
+  // reopen it, and appears live if they're already looking at it.
+  function startPolling() {
+    setInterval(async () => {
+      if (!sessionId) return;
+      try {
+        const r = await fetch(`${API_BASE}/conversation-history?hotelId=${encodeURIComponent(hotelId)}&sessionId=${encodeURIComponent(sessionId)}`);
+        if (!r.ok) return;
+        const data = await r.json();
+        const msgs = data.messages || [];
+        if (msgs.length > renderedMessageCount) {
+          msgs.slice(renderedMessageCount).forEach(m => {
+            if (m.role === 'guest') addGuestMessage(m.content_original);
+            else addAgentMessage(m.content_original, m.tier);
+          });
+          renderedMessageCount = msgs.length;
+        }
+      } catch { /* silent — just retry on the next interval */ }
+    }, 15000);
+  }
 
   // ---- Message rendering ----
   const tierLabel = { auto: 'Auto answered', needs_approval: 'Draft for staff', urgent: 'Urgent, escalated', limit_reached: 'Limit reached', itinerary: 'Trip planning', human_requested: 'Connecting you to staff' };
@@ -324,6 +358,7 @@
         localStorage.setItem(SESSION_KEY, sessionId);
       }
       if (data.detectedLanguage) lastDetectedLanguage = data.detectedLanguage;
+      renderedMessageCount += 2; // this exchange (guest message + agent reply) is now persisted server-side
       // Widget shows the guest-facing reply directly (already in their language
       // from the backend). No English/translation split needed here — that
       // split is a marketing-demo feature on the landing page.
@@ -335,7 +370,7 @@
       }
     } catch (err) {
       hideTyping();
-      addAgentMessage("Couldn't reach the concierge — check your connection.", 'urgent');
+      addAgentMessage("Couldn't reach the concierge. Check your connection.", 'urgent');
     } finally {
       sendBtn.disabled = false;
       inputEl.focus();
@@ -427,7 +462,7 @@
     const card = document.createElement('div');
     card.className = 'msg agent';
     if (!activities.length) {
-      const fallback = "No matching options on file yet for those interests — ask at the front desk and we'll help you plan something.";
+      const fallback = "No matching options on file yet for those interests. Ask at the front desk and we'll help you plan something.";
       card.innerHTML = `<div class="itinerary-card"><div class="itinerary-empty">${escapeHtml(emptyMessage || fallback)}</div></div>`;
     } else {
       const rows = activities.map(a => `

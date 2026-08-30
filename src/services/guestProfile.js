@@ -55,9 +55,17 @@ async function recordInterests({ hotelId, sessionId, interests }) {
 }
 
 // Aggregate view for the dashboard: top languages, top interests, and basic
-// counts across every guest this hotel has ever talked to.
-async function getInsights(hotelId) {
-  const { rows } = await query('SELECT * FROM guest_profiles WHERE hotel_id = $1', [hotelId]);
+// counts across guests this hotel has talked to. sinceDate (optional) scopes
+// to guests active since that cutoff — their language/interest counts are
+// still lifetime totals, not counts-within-the-period, since individual
+// interactions aren't timestamped in the aggregate profile row. That's a
+// reasonable approximation ("who was active this month, and what does their
+// overall behavior look like") rather than a perfectly period-scoped figure.
+async function getInsights(hotelId, sinceDate) {
+  const { rows } = await query(
+    'SELECT * FROM guest_profiles WHERE hotel_id = $1 AND ($2::timestamptz IS NULL OR last_seen >= $2)',
+    [hotelId, sinceDate || null]
+  );
 
   const languageTotals = {};
   const interestTotals = {};
@@ -88,10 +96,12 @@ async function getInsights(hotelId) {
 
 // Individual guest list for the dashboard's guest table — each guest's
 // primary (most-used) language, top interest, and activity summary.
-async function listGuests(hotelId, limit = 100) {
+// sinceDate scopes to guests active since that cutoff, same approximation
+// as getInsights above.
+async function listGuests(hotelId, limit = 100, sinceDate) {
   const { rows } = await query(
-    'SELECT * FROM guest_profiles WHERE hotel_id = $1 ORDER BY last_seen DESC LIMIT $2',
-    [hotelId, limit]
+    'SELECT * FROM guest_profiles WHERE hotel_id = $1 AND ($3::timestamptz IS NULL OR last_seen >= $3) ORDER BY last_seen DESC LIMIT $2',
+    [hotelId, limit, sinceDate || null]
   );
   return rows.map(p => {
     const langs = Object.entries(p.languages || {}).sort((a, b) => b[1] - a[1]);

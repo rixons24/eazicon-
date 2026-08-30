@@ -25,11 +25,11 @@ const { isHumanRequest } = require('./humanRequest');
 const { checkLimit, tickUsage, getPlan } = require('./plans');
 
 const TIER_ACK = {
-  urgent: 'Thank you — I have flagged this for our front desk manager who will help you right away.',
+  urgent: 'Thank you. I have flagged this for our front desk manager who will help you right away.',
   needs_approval: "Let me check on that for you and get back with confirmation shortly.",
   limit_reached: 'This concierge has reached its message limit for now. Please ask at the front desk.',
   itinerary: "I'd love to help you plan your day! Pick what interests you and I'll put together some options.",
-  human_requested: "Of course — I've let our team know, and someone will join this conversation shortly.",
+  human_requested: "Of course. I've let our team know, and someone will join this conversation shortly.",
 };
 
 // Cheap, zero-cost language guess from character script alone — used only for
@@ -70,17 +70,38 @@ async function loadKB(hotelId) {
   return rows;
 }
 
+// Resolves a language for paths that skip full LLM classification (urgent,
+// human-request, itinerary regex hits) and therefore get no free language
+// detection. Tries cheapest-first: passed-in hint → free script guess
+// (catches Chinese/Arabic/Japanese/Korean/Russian instantly) → one cheap
+// standalone LLM call as a last resort for Latin-script languages a regex
+// can't tell apart (Polish vs German vs Swahili all look the same).
+//
+// This was the actual bug behind urgent messages showing no English
+// translation in the dashboard: the urgent branch had no fallback at all
+// before this, so real widget traffic (which never sends a language hint)
+// silently skipped translation every time.
+async function resolveLanguage(guestMessage, guestLanguage) {
+  if (guestLanguage) return guestLanguage;
+  const scriptGuess = guessScriptLanguage(guestMessage);
+  if (scriptGuess) return scriptGuess;
+  try { return await groq.detectLanguage(guestMessage); }
+  catch { return 'en'; }
+}
+
 // Persists both messages with full bilingual context: the guest row carries
 // their original text AND its English translation; the agent row carries the
 // English version staff would recognize AND whatever language the guest saw.
+// Also stamps the detected language onto the conversation record itself, so
+// the dashboard's language badge reflects reality instead of staying blank.
 //
-// approval_status is set to 'pending' for both needs_approval AND urgent tiers
-// — urgent items don't need a draft approved, but they DO need a human to
-// mark them handled, and giving them the same pending/dismissed lifecycle is
-// what lets "dismiss" actually remove them from the queue. Without this, an
-// urgent item has no status to change and reappears on every refresh
-// regardless of what staff do with it.
-async function persistMessages({ conversationId, guestMessage, guestMessageEnglish, tier, staffDraft, agentReplyOriginalLang, agentReplyEnglish }) {
+// approval_status is set to 'pending' for needs_approval, urgent, AND
+// human_requested tiers — none of these have a draft to approve, but they DO
+// need a human to mark them handled, and giving them the same pending/
+// dismissed lifecycle is what lets "dismiss" actually remove them from the
+// queue. Without this, those items have no status to change and reappear on
+// every refresh regardless of what staff do with them.
+async function persistMessages({ conversationId, guestMessage, guestMessageEnglish, tier, staffDraft, agentReplyOriginalLang, agentReplyEnglish, detectedLanguage }) {
   const needsStatus = tier === 'needs_approval' || tier === 'urgent' || tier === 'human_requested';
   await query(
     `INSERT INTO messages (id, conversation_id, role, content_original, content_english, tier, approval_status, approval_draft, created_at)
@@ -92,7 +113,10 @@ async function persistMessages({ conversationId, guestMessage, guestMessageEngli
      VALUES ($1, $2, 'agent', $3, $4, $5, NOW())`,
     [nanoid(12), conversationId, agentReplyOriginalLang, agentReplyEnglish, tier]
   );
-  await query('UPDATE conversations SET updated_at = NOW() WHERE id = $1', [conversationId]);
+  await query(
+    'UPDATE conversations SET updated_at = NOW(), guest_language = COALESCE($2, guest_language) WHERE id = $1',
+    [conversationId, detectedLanguage || null]
+  );
 }
 
 // Best-effort translate-to-English for the guest's own message, used purely
@@ -120,9 +144,10 @@ async function resolveTieredReply({ hotel, conversationId, guestMessage, guestLa
 
   // 2. Urgent escalation (English keyword regex — the LLM path also catches non-English urgent)
   if (isUrgent(guestMessage)) {
-    const gmEn = await toEnglish(guestMessage, guestLanguage);
+    const targetLang = await resolveLanguage(guestMessage, guestLanguage);
+    const gmEn = await toEnglish(guestMessage, targetLang);
     await persistMessages({
-      conversationId, guestMessage, guestMessageEnglish: gmEn,
+      conversationId, guestMessage, guestMessageEnglish: gmEn, detectedLanguage: targetLang,
       tier: 'urgent', agentReplyOriginalLang: TIER_ACK.urgent, agentReplyEnglish: TIER_ACK.urgent,
     });
     await tickUsage(query, hotel.id);
@@ -131,7 +156,7 @@ async function resolveTieredReply({ hotel, conversationId, guestMessage, guestLa
       guestReplyText: TIER_ACK.urgent,
       guestReplyEnglish: TIER_ACK.urgent,
       guestMessageEnglish: gmEn,
-      detectedLanguage: guestLanguage || 'en',
+      detectedLanguage: targetLang,
     };
   }
 
@@ -139,11 +164,11 @@ async function resolveTieredReply({ hotel, conversationId, guestMessage, guestLa
   // gets its own tier rather than being folded into "urgent". Skips the LLM
   // entirely: no attempt at answering, just an immediate handoff acknowledgment.
   if (isHumanRequest(guestMessage)) {
-    const targetLang = guestLanguage || guessScriptLanguage(guestMessage) || 'en';
+    const targetLang = await resolveLanguage(guestMessage, guestLanguage);
     const ack = targetLang === 'en' ? TIER_ACK.human_requested : await translate(TIER_ACK.human_requested, targetLang).catch(() => TIER_ACK.human_requested);
     const gmEn = await toEnglish(guestMessage, targetLang);
     await persistMessages({
-      conversationId, guestMessage, guestMessageEnglish: gmEn,
+      conversationId, guestMessage, guestMessageEnglish: gmEn, detectedLanguage: targetLang,
       tier: 'human_requested', agentReplyOriginalLang: ack, agentReplyEnglish: TIER_ACK.human_requested,
     });
     await tickUsage(query, hotel.id);
@@ -161,23 +186,12 @@ async function resolveTieredReply({ hotel, conversationId, guestMessage, guestLa
   // widget to render the interactive interest picker instead of plain text.
   // This is what actually surfaces the itinerary builder in conversation,
   // rather than it sitting unused behind the /itinerary API.
-  //
-  // Language for the prompt: try the free script-based guess first (catches
-  // Chinese/Arabic/Japanese/Korean/Russian at zero cost). If that comes back
-  // empty — Latin-script languages like Polish, German, Swahili all look the
-  // same to a regex — fall back to one cheap, standalone detectLanguage call
-  // rather than defaulting straight to English. Single small-model call, no
-  // KB context, so it stays fast without giving up accuracy for those guests.
   if (isItineraryIntent(guestMessage)) {
-    let targetLang = guestLanguage || guessScriptLanguage(guestMessage);
-    if (!targetLang) {
-      try { targetLang = await groq.detectLanguage(guestMessage); }
-      catch { targetLang = 'en'; }
-    }
+    const targetLang = await resolveLanguage(guestMessage, guestLanguage);
     const prompt = targetLang === 'en' ? TIER_ACK.itinerary : await translate(TIER_ACK.itinerary, targetLang);
     const gmEn = await toEnglish(guestMessage, targetLang);
     await persistMessages({
-      conversationId, guestMessage, guestMessageEnglish: gmEn,
+      conversationId, guestMessage, guestMessageEnglish: gmEn, detectedLanguage: targetLang,
       tier: 'itinerary', agentReplyOriginalLang: prompt, agentReplyEnglish: TIER_ACK.itinerary,
     });
     await tickUsage(query, hotel.id);
@@ -198,7 +212,7 @@ async function resolveTieredReply({ hotel, conversationId, guestMessage, guestLa
     const translated = targetLang === 'en' ? kbHit.answer : await translate(kbHit.answer, targetLang);
     const gmEn = await toEnglish(guestMessage, targetLang);
     await persistMessages({
-      conversationId, guestMessage, guestMessageEnglish: gmEn,
+      conversationId, guestMessage, guestMessageEnglish: gmEn, detectedLanguage: targetLang,
       tier: 'auto', agentReplyOriginalLang: translated, agentReplyEnglish: kbHit.answer,
     });
     await tickUsage(query, hotel.id);
@@ -225,7 +239,7 @@ async function resolveTieredReply({ hotel, conversationId, guestMessage, guestLa
 
   if (result.tier === 'urgent') {
     await persistMessages({
-      conversationId, guestMessage, guestMessageEnglish: gmEn,
+      conversationId, guestMessage, guestMessageEnglish: gmEn, detectedLanguage: finalLang,
       tier: 'urgent', agentReplyOriginalLang: TIER_ACK.urgent, agentReplyEnglish: TIER_ACK.urgent,
     });
     await tickUsage(query, hotel.id);
@@ -243,7 +257,7 @@ async function resolveTieredReply({ hotel, conversationId, guestMessage, guestLa
   if (result.tier === 'human_requested') {
     const ack = finalLang === 'en' ? TIER_ACK.human_requested : await translate(TIER_ACK.human_requested, finalLang);
     await persistMessages({
-      conversationId, guestMessage, guestMessageEnglish: gmEn,
+      conversationId, guestMessage, guestMessageEnglish: gmEn, detectedLanguage: finalLang,
       tier: 'human_requested', agentReplyOriginalLang: ack, agentReplyEnglish: TIER_ACK.human_requested,
     });
     await tickUsage(query, hotel.id);
@@ -262,7 +276,7 @@ async function resolveTieredReply({ hotel, conversationId, guestMessage, guestLa
   if (result.tier === 'itinerary') {
     const prompt = finalLang === 'en' ? TIER_ACK.itinerary : await translate(TIER_ACK.itinerary, finalLang);
     await persistMessages({
-      conversationId, guestMessage, guestMessageEnglish: gmEn,
+      conversationId, guestMessage, guestMessageEnglish: gmEn, detectedLanguage: finalLang,
       tier: 'itinerary', agentReplyOriginalLang: prompt, agentReplyEnglish: TIER_ACK.itinerary,
     });
     await tickUsage(query, hotel.id);
@@ -278,7 +292,7 @@ async function resolveTieredReply({ hotel, conversationId, guestMessage, guestLa
   if (result.tier === 'auto') {
     const translated = finalLang === 'en' ? result.draft : await translate(result.draft, finalLang);
     await persistMessages({
-      conversationId, guestMessage, guestMessageEnglish: gmEn,
+      conversationId, guestMessage, guestMessageEnglish: gmEn, detectedLanguage: finalLang,
       tier: 'auto', agentReplyOriginalLang: translated, agentReplyEnglish: result.draft,
     });
     await tickUsage(query, hotel.id);
@@ -294,7 +308,7 @@ async function resolveTieredReply({ hotel, conversationId, guestMessage, guestLa
   // needs_approval: guest gets a holding message, staff gets the draft in their queue
   const ack = finalLang === 'en' ? TIER_ACK.needs_approval : await translate(TIER_ACK.needs_approval, finalLang);
   await persistMessages({
-    conversationId, guestMessage, guestMessageEnglish: gmEn,
+    conversationId, guestMessage, guestMessageEnglish: gmEn, detectedLanguage: finalLang,
     tier: 'needs_approval', staffDraft: result.draft,
     agentReplyOriginalLang: ack, agentReplyEnglish: TIER_ACK.needs_approval,
   });

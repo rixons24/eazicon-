@@ -3,6 +3,7 @@ const { nanoid } = require('nanoid');
 const { query } = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
 const guestProfile = require('../services/guestProfile');
+const translate = require('../services/translate');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -142,7 +143,44 @@ router.delete('/operators/:operatorId', async (req, res) => {
   res.json({ ok: true });
 });
 
-// GET /dashboard/hotels/:hotelId/queue — the auto/needs_approval/urgent queue
+// GET /dashboard/hotels/:hotelId/discovery-questions
+router.get('/hotels/:hotelId/discovery-questions', async (req, res) => {
+  const hotel = await ownedHotel(req.account.accountId, req.params.hotelId);
+  if (!hotel) return res.status(404).json({ error: 'not found' });
+  const { rows } = await query(
+    'SELECT * FROM discovery_questions WHERE hotel_id = $1 ORDER BY sort_order ASC, created_at ASC',
+    [hotel.id]
+  );
+  res.json({ questions: rows });
+});
+
+// POST /dashboard/hotels/:hotelId/discovery-questions
+router.post('/hotels/:hotelId/discovery-questions', async (req, res) => {
+  const hotel = await ownedHotel(req.account.accountId, req.params.hotelId);
+  if (!hotel) return res.status(404).json({ error: 'not found' });
+  const { question } = req.body;
+  if (!question || !question.trim()) return res.status(400).json({ error: 'question required' });
+  const { rows: countRows } = await query('SELECT COUNT(*) FROM discovery_questions WHERE hotel_id = $1', [hotel.id]);
+  const id = nanoid(12);
+  await query(
+    'INSERT INTO discovery_questions (id, hotel_id, question, sort_order) VALUES ($1, $2, $3, $4)',
+    [id, hotel.id, question.trim(), parseInt(countRows[0].count, 10)]
+  );
+  res.json({ id });
+});
+
+router.delete('/discovery-questions/:questionId', async (req, res) => {
+  const { rows } = await query(
+    `DELETE FROM discovery_questions WHERE id = $1
+     AND hotel_id IN (SELECT id FROM hotels WHERE account_id = $2)
+     RETURNING id`,
+    [req.params.questionId, req.account.accountId]
+  );
+  if (!rows[0]) return res.status(404).json({ error: 'not found' });
+  res.json({ ok: true });
+});
+
+
 router.get('/hotels/:hotelId/queue', async (req, res) => {
   const hotel = await ownedHotel(req.account.accountId, req.params.hotelId);
   if (!hotel) return res.status(404).json({ error: 'not found' });
@@ -183,24 +221,37 @@ router.get('/hotels/:hotelId/queue', async (req, res) => {
   });
 });
 
+// Maps the dashboard's range selector ('week'|'month'|'year'|'all') to an
+// actual cutoff timestamp for filtering guest_profiles by last_seen.
+function rangeToCutoff(range) {
+  const now = Date.now();
+  if (range === 'week') return new Date(now - 7 * 24 * 60 * 60 * 1000);
+  if (range === 'month') return new Date(now - 30 * 24 * 60 * 60 * 1000);
+  if (range === 'year') return new Date(now - 365 * 24 * 60 * 60 * 1000);
+  return null; // 'all' or unrecognized — no filter
+}
+
 // GET /dashboard/hotels/:hotelId/insights — aggregate language/interest
-// patterns across every guest this property has talked to. Powers the
-// "Guest insights" dashboard tab.
+// patterns across guests this property has talked to. Powers the
+// "Guest insights" dashboard tab. ?range= scopes to guests active within
+// that window (week/month/year/all, default all).
 router.get('/hotels/:hotelId/insights', async (req, res) => {
   const hotel = await ownedHotel(req.account.accountId, req.params.hotelId);
   if (!hotel) return res.status(404).json({ error: 'not found' });
-  const insights = await guestProfile.getInsights(hotel.id);
+  const cutoff = rangeToCutoff(req.query.range);
+  const insights = await guestProfile.getInsights(hotel.id, cutoff);
   res.json(insights);
 });
 
 // GET /dashboard/hotels/:hotelId/guests — individual guest profiles, most
 // recently active first. Each row is one anonymous guest session with their
 // primary language, top interest, and activity counts — not a name or any
-// PII, just the behavior pattern.
+// PII, just the behavior pattern. ?range= same scoping as insights above.
 router.get('/hotels/:hotelId/guests', async (req, res) => {
   const hotel = await ownedHotel(req.account.accountId, req.params.hotelId);
   if (!hotel) return res.status(404).json({ error: 'not found' });
-  const guests = await guestProfile.listGuests(hotel.id);
+  const cutoff = rangeToCutoff(req.query.range);
+  const guests = await guestProfile.listGuests(hotel.id, 100, cutoff);
   res.json({ guests });
 });
 
@@ -218,6 +269,44 @@ router.get('/conversations/:conversationId/messages', async (req, res) => {
     [req.params.conversationId, req.account.accountId]
   );
   res.json({ messages: rows });
+});
+
+// POST /dashboard/conversations/:conversationId/reply — lets staff type
+// directly into a conversation instead of only approving pre-drafted
+// replies. Covers urgent/human_requested items (which never had a draft to
+// begin with) and any case where staff just want to jump in themselves.
+// Staff write in English; this auto-translates into whatever language the
+// conversation is tagged with (guest_language, now reliably populated —
+// see resolver.js) so the guest reads it in their own language, same as
+// every other reply in the app.
+router.post('/conversations/:conversationId/reply', async (req, res) => {
+  const { text } = req.body;
+  if (!text || !text.trim()) return res.status(400).json({ error: 'text required' });
+
+  const { rows: convRows } = await query(
+    `SELECT c.* FROM conversations c
+     JOIN hotels h ON h.id = c.hotel_id
+     WHERE c.id = $1 AND h.account_id = $2`,
+    [req.params.conversationId, req.account.accountId]
+  );
+  const conversation = convRows[0];
+  if (!conversation) return res.status(404).json({ error: 'not found' });
+
+  const guestLang = conversation.guest_language;
+  let translated = text.trim();
+  if (guestLang && guestLang !== 'en') {
+    try { translated = await translate(text.trim(), guestLang); }
+    catch { /* fall back to English if translation fails — better than dropping the reply */ }
+  }
+
+  await query(
+    `INSERT INTO messages (id, conversation_id, role, content_original, content_english, tier, approval_status, created_at)
+     VALUES ($1, $2, 'staff', $3, $4, 'auto', 'sent', NOW())`,
+    [nanoid(12), req.params.conversationId, translated, text.trim()]
+  );
+  await query('UPDATE conversations SET updated_at = NOW() WHERE id = $1', [req.params.conversationId]);
+
+  res.json({ ok: true, sentText: translated });
 });
 
 // POST /dashboard/messages/:messageId/approve — staff approves (or edits) a draft
