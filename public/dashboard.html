@@ -401,11 +401,11 @@
         <h3>Add a new answer</h3>
         <div class="form-group">
           <label for="kbQ">Question</label>
-          <input type="text" id="kbQ" placeholder="e.g. What time is checkout?">
+          <input type="text" id="kbQ" placeholder="e.g. What time is checkout?" autocorrect="on" autocapitalize="sentences" spellcheck="true">
         </div>
         <div class="form-group">
           <label for="kbA">Answer</label>
-          <textarea id="kbA" placeholder="e.g. Checkout is at 11:00 AM. Late checkout available until 1 PM for $20."></textarea>
+          <textarea id="kbA" placeholder="e.g. Checkout is at 11:00 AM. Late checkout available until 1 PM for $20." autocorrect="on" autocapitalize="sentences" spellcheck="true"></textarea>
         </div>
         <div class="form-group">
           <label for="kbKw">Keywords (comma-separated, for matching guest messages)</label>
@@ -426,7 +426,7 @@
         <h3>Add a question</h3>
         <div class="form-group">
           <label for="dqText">Question</label>
-          <input type="text" id="dqText" placeholder="e.g. Any dietary restrictions or allergies we should know about?">
+          <input type="text" id="dqText" placeholder="e.g. Any dietary restrictions or allergies we should know about?" autocorrect="on" autocapitalize="sentences" spellcheck="true">
         </div>
         <button class="btn-primary" style="width: auto; padding: 10px 22px;" onclick="addDiscoveryQuestion()">Add question</button>
         <p class="status-line" id="dqStatus"></p>
@@ -446,7 +446,7 @@
         <h3>Add operator</h3>
         <div class="form-group">
           <label for="opName">Name</label>
-          <input type="text" id="opName" placeholder="e.g. Mnemba Snorkeling Tours">
+          <input type="text" id="opName" placeholder="e.g. Mnemba Snorkeling Tours" autocorrect="on" autocapitalize="words" spellcheck="true">
         </div>
         <div class="form-row">
           <div class="form-group">
@@ -909,12 +909,12 @@
         <textarea id="edit-text-${m.id}">${escapeHtml(m.approval_draft || '')}</textarea>
         <button class="btn-primary" style="width: auto; padding: 8px 16px; font-size: 13px;" onclick="approveMessage('${m.id}', true)">Send edited reply</button>
       </div>` : '';
-    // View-conversation is available everywhere a message appears — including
-    // the compact Overview list — since "what was this actually about" is
-    // just as useful for an auto-answered item as a pending one.
+    // Opens the conversation in its own page/window rather than expanding
+    // inline — easier to work with a full thread while keeping the queue
+    // list itself uncluttered, and lets a manager keep it open in a
+    // separate tab while triaging the rest of the queue.
     const viewThreadLink = m.conversation_id
-      ? `<button class="btn-ghost" style="margin-top: 8px;" onclick="toggleThread('${m.id}', '${m.conversation_id}')">View full conversation</button>
-         <div class="thread-view" id="thread-${m.id}"></div>` : '';
+      ? `<button class="btn-ghost" style="margin-top: 8px;" onclick="window.open('conversation?id=${m.conversation_id}', '_blank')">View full conversation</button>` : '';
     const checkbox = (!compact && isPending)
       ? `<input type="checkbox" class="queue-checkbox" data-id="${m.id}" onchange="updateBulkBar()" style="margin-right: 8px;">` : '';
     return `
@@ -932,85 +932,6 @@
         ${!compact ? actions : ''}
         ${viewThreadLink}
       </div>`;
-  }
-
-  // Fetch and render the full back-and-forth for a conversation, in
-  // chronological order, with English translations shown for every guest
-  // message — this is the "let the manager verify what was actually said"
-  // view, useful when a tier decision looks questionable.
-  const threadCache = {};
-  async function toggleThread(msgId, conversationId) {
-    const el = document.getElementById(`thread-${msgId}`);
-    if (el.classList.contains('open')) {
-      el.classList.remove('open');
-      return;
-    }
-    el.classList.add('open');
-    el.innerHTML = '<div class="thread-loading">Loading conversation...</div>';
-    try {
-      // Always refetch (don't reuse cache) — a stale cached thread would hide
-      // a staff reply someone just sent from another tab, or new guest activity.
-      const res = await api(`/dashboard/conversations/${conversationId}/messages`);
-      const data = await res.json();
-      threadCache[conversationId] = data.messages || [];
-      const thread = threadCache[conversationId];
-      const threadHtml = thread.length ? thread.map(t => {
-        const isGuest = t.role === 'guest';
-        const roleLabel = isGuest ? 'Guest' : (t.role === 'staff' ? 'Staff' : 'Concierge');
-        const tLine = (t.content_english && t.content_english !== t.content_original)
-          ? `<div class="thread-translation">→ ${escapeHtml(t.content_english)}</div>` : '';
-        return `
-          <div class="thread-msg ${t.role}">
-            <div class="thread-role">${roleLabel}</div>
-            <div class="thread-text">${escapeHtml(t.content_original)}</div>
-            ${tLine}
-          </div>`;
-      }).join('') : '<div class="thread-loading">No messages found.</div>';
-
-      // Reply box: lets staff take over the conversation directly instead of
-      // only ever approving pre-drafted replies. Useful for urgent/human-
-      // requested items (which have no draft to begin with) and any case
-      // where staff just want to say something themselves.
-      el.innerHTML = `
-        <div class="thread-messages">${threadHtml}</div>
-        <div class="thread-reply-row">
-          <input type="text" class="thread-reply-input" id="reply-input-${conversationId}" placeholder="Type a reply, sent in the guest's language automatically">
-          <button class="btn-primary" style="width: auto; padding: 8px 14px; font-size: 13px;" onclick="sendStaffReply('${conversationId}', '${msgId}')">Send</button>
-        </div>
-        <p class="status-line" id="reply-status-${conversationId}" style="text-align: left; margin-top: 4px;"></p>`;
-
-      const input = document.getElementById(`reply-input-${conversationId}`);
-      input.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendStaffReply(conversationId, msgId); });
-    } catch (e) {
-      el.innerHTML = '<div class="thread-loading">Failed to load conversation.</div>';
-    }
-  }
-
-  async function sendStaffReply(conversationId, msgId) {
-    const input = document.getElementById(`reply-input-${conversationId}`);
-    const status = document.getElementById(`reply-status-${conversationId}`);
-    const text = input.value.trim();
-    if (!text) return;
-    input.disabled = true;
-    status.textContent = 'Sending...';
-    status.className = 'status-line';
-    try {
-      const res = await api(`/dashboard/conversations/${conversationId}/reply`, {
-        method: 'POST', body: JSON.stringify({ text }),
-      });
-      if (!res.ok) throw new Error('Send failed');
-      input.value = '';
-      status.textContent = '';
-      // Refresh the thread in place so the new reply shows immediately
-      delete threadCache[conversationId];
-      document.getElementById(`thread-${msgId}`).classList.remove('open');
-      toggleThread(msgId, conversationId);
-    } catch (e) {
-      status.className = 'status-line err';
-      status.textContent = 'Failed to send. Please try again.';
-    } finally {
-      input.disabled = false;
-    }
   }
 
   function toggleEdit(id) {

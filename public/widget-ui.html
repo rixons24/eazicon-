@@ -54,11 +54,9 @@
     font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 5px;
     margin-bottom: 3px; letter-spacing: 0.02em; text-transform: uppercase; display: inline-block;
   }
-  .msg-tier.auto { background: rgba(25,116,138,0.14); color: var(--teal); }
-  .msg-tier.needs_approval { background: rgba(166,245,192,0.4); color: var(--navy); }
-  .msg-tier.urgent { background: rgba(176,57,47,0.14); color: var(--danger); }
-  .msg-tier.itinerary { background: rgba(166,245,192,0.4); color: var(--navy); }
-  .msg-tier.human_requested { background: rgba(25,116,138,0.14); color: var(--teal); }
+  .msg-time { font-size: 10px; color: var(--text-faint); margin-top: 2px; padding: 0 4px; }
+  .msg.guest .msg-time { text-align: right; }
+  .msg.agent .msg-time { text-align: left; }
 
   /* ---- In-chat itinerary picker ---- */
   .itinerary-card {
@@ -160,7 +158,7 @@
   <button class="human-link" onclick="requestHuman()">Prefer to talk to a real person?</button>
 </div>
 <div class="input-row">
-  <input type="text" id="input" placeholder="Type in any language..." autofocus>
+  <input type="text" id="input" placeholder="Type in any language..." autocomplete="off" autocorrect="on" autocapitalize="sentences" spellcheck="true" autofocus>
   <button class="send-btn" id="sendBtn" aria-label="Send">
     <svg viewBox="0 0 24 24"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
   </button>
@@ -283,7 +281,10 @@
   }
 
   // ---- Message rendering ----
-  const tierLabel = { auto: 'Auto answered', needs_approval: 'Draft for staff', urgent: 'Urgent, escalated', limit_reached: 'Limit reached', itinerary: 'Trip planning', human_requested: 'Connecting you to staff' };
+  // No tier labels shown here — "Draft for staff", "Trip planning", etc. are
+  // internal staff classifications (visible in the dashboard), not something
+  // a guest should ever see. The widget is meant to read like an ordinary
+  // messaging app: clean bubbles, no internal metadata.
 
   // Defense-in-depth: the classification prompt tells the LLM never to use
   // markdown (this widget has no markdown renderer — it's plain textContent),
@@ -300,7 +301,7 @@
   function addGuestMessage(text) {
     const el = document.createElement('div');
     el.className = 'msg guest';
-    el.innerHTML = `<div class="msg-bubble"></div>`;
+    el.innerHTML = `<div class="msg-bubble"></div><div class="msg-time">${formatTime()}</div>`;
     el.querySelector('.msg-bubble').textContent = text;
     messagesEl.appendChild(el);
     messagesEl.scrollTop = messagesEl.scrollHeight;
@@ -309,11 +310,17 @@
   function addAgentMessage(text, tier) {
     const el = document.createElement('div');
     el.className = 'msg agent';
-    const tierMarkup = tier ? `<span class="msg-tier ${tier}">${tierLabel[tier] || tier}</span><br>` : '';
-    el.innerHTML = `${tierMarkup}<div class="msg-bubble"></div>`;
+    // No tier badge here — "Draft for staff", "Trip planning", etc. are
+    // internal staff classifications, not something a guest should ever see.
+    // The guest just gets a clean message bubble, same as any messaging app.
+    el.innerHTML = `<div class="msg-bubble"></div><div class="msg-time">${formatTime()}</div>`;
     el.querySelector('.msg-bubble').textContent = stripMarkdown(text);
     messagesEl.appendChild(el);
     messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  function formatTime() {
+    return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   }
 
   function showTyping() {
