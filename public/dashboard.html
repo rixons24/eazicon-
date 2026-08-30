@@ -222,6 +222,25 @@
     padding: 1px 8px; border-radius: 4px; font-weight: 600; text-transform: uppercase;
   }
   .op-item .meta { font-size: 12.5px; color: var(--text-dim); }
+
+  /* ---- Guest insights ---- */
+  .insight-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 760px) { .insight-columns { grid-template-columns: 1fr; } }
+  .bar-row { margin-bottom: 12px; }
+  .bar-row-head { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px; }
+  .bar-row-head .name { font-weight: 500; color: var(--text); text-transform: capitalize; }
+  .bar-row-head .count { color: var(--text-faint); }
+  .bar-track { height: 6px; background: var(--bg-raised); border-radius: 4px; overflow: hidden; }
+  .bar-fill { height: 100%; background: var(--teal); border-radius: 4px; transition: width 0.4s ease; }
+  .guest-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .guest-table th {
+    text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em;
+    color: var(--text-faint); padding: 8px 12px; border-bottom: 1px solid var(--border);
+  }
+  .guest-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); color: var(--text-dim); }
+  .guest-table tr:last-child td { border-bottom: none; }
+  .guest-table .session-id { font-family: monospace; font-size: 11.5px; color: var(--text-faint); }
+  .guest-table .lang-tag { background: var(--bg-raised); padding: 2px 8px; border-radius: 4px; font-size: 11.5px; text-transform: uppercase; font-weight: 500; }
   .item-actions { text-align: right; margin-top: 8px; }
 
   .add-form {
@@ -307,6 +326,7 @@
     <button class="tab-btn" data-tab="queue">Message queue<span class="badge" id="queueBadge" style="display:none;">0</span></button>
     <button class="tab-btn" data-tab="knowledge">Knowledge base</button>
     <button class="tab-btn" data-tab="operators">Operators</button>
+    <button class="tab-btn" data-tab="guests">Guests</button>
     <button class="tab-btn" data-tab="settings">Settings</button>
   </nav>
 
@@ -434,6 +454,39 @@
         <p class="status-line" id="opStatus"></p>
       </div>
       <div id="opList"></div>
+    </section>
+
+    <!-- Guest insights -->
+    <section class="tab-panel" id="tab-guests">
+      <div class="panel-head">
+        <div>
+          <h2>Guest insights</h2>
+          <p>Language and behavior patterns across every guest this property has talked to — not names or identity, just what's useful for planning</p>
+        </div>
+        <button class="btn-ghost" onclick="loadGuestInsights()">↻ Refresh</button>
+      </div>
+
+      <div class="stats-grid" style="grid-template-columns: repeat(3, 1fr);">
+        <div class="stat-card"><div class="label">Unique guests</div><div class="value" id="gi-total">—</div></div>
+        <div class="stat-card"><div class="label">Repeat guests</div><div class="value" id="gi-repeat">—</div></div>
+        <div class="stat-card"><div class="label">Total messages</div><div class="value" id="gi-messages">—</div></div>
+      </div>
+
+      <div class="insight-columns">
+        <div class="add-form">
+          <h3>Top languages</h3>
+          <p style="font-size: 12.5px; color: var(--text-faint); margin-top: -8px; margin-bottom: 14px;">Useful for deciding which languages to staff or pre-translate signage for. Language doesn't necessarily indicate nationality — a guest speaking Portuguese could be from Brazil, Portugal, Angola, or elsewhere.</p>
+          <div id="topLanguages"></div>
+        </div>
+        <div class="add-form">
+          <h3>Top requested activities</h3>
+          <p style="font-size: 12.5px; color: var(--text-faint); margin-top: -8px; margin-bottom: 14px;">What guests actually ask the itinerary builder for — useful for deciding which local operators to partner with next.</p>
+          <div id="topInterests"></div>
+        </div>
+      </div>
+
+      <h3 style="font-size: 15px; font-weight: 600; margin: 24px 0 12px;">Individual guests</h3>
+      <div id="guestTable"></div>
     </section>
 
     <!-- Settings -->
@@ -666,6 +719,7 @@
     document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === `tab-${name}`));
     if (name === 'knowledge') loadKnowledge();
     else if (name === 'operators') loadOperators();
+    else if (name === 'guests') loadGuestInsights();
     else if (name === 'settings') loadSettings();
     else if (name === 'queue') loadQueue();
     else if (name === 'overview') loadQueue();
@@ -1045,6 +1099,68 @@
       await api(`/dashboard/operators/${id}`, {method: 'DELETE'});
       loadOperators();
     } catch (e) { alert('Delete failed: ' + e.message); }
+  }
+
+  // ---- Guest insights ----
+  async function loadGuestInsights() {
+    try {
+      const [insightsRes, guestsRes] = await Promise.all([
+        api(`/dashboard/hotels/${CURRENT_HOTEL_ID}/insights`),
+        api(`/dashboard/hotels/${CURRENT_HOTEL_ID}/guests`),
+      ]);
+      const insights = await insightsRes.json();
+      const guestsData = await guestsRes.json();
+
+      document.getElementById('gi-total').textContent = insights.totalGuests || 0;
+      document.getElementById('gi-repeat').textContent = insights.repeatGuests || 0;
+      document.getElementById('gi-messages').textContent = insights.totalMessages || 0;
+
+      renderBarList('topLanguages', insights.topLanguages || [], LANGUAGE_NAMES);
+      renderBarList('topInterests', insights.topInterests || [], INTEREST_NAMES);
+      renderGuestTable(guestsData.guests || []);
+    } catch (e) { console.error(e); }
+  }
+
+  const LANGUAGE_NAMES = { en: 'English', pl: 'Polish', zh: 'Chinese', ar: 'Arabic', de: 'German', ja: 'Japanese', sw: 'Swahili', fr: 'French', es: 'Spanish', it: 'Italian', pt: 'Portuguese', ru: 'Russian', ko: 'Korean', nl: 'Dutch', hi: 'Hindi', tr: 'Turkish', am: 'Amharic' };
+  const INTEREST_NAMES = { snorkel: 'Snorkeling', safari: 'Safari', culture: 'Culture & heritage', food: 'Local food', spa: 'Spa & relax', nightlife: 'Nightlife' };
+
+  function renderBarList(containerId, entries, nameMap) {
+    const el = document.getElementById(containerId);
+    if (!entries.length) {
+      el.innerHTML = '<div class="list-empty" style="padding: 20px;">No data yet.</div>';
+      return;
+    }
+    const max = entries[0][1]; // sorted descending, so first is the max
+    el.innerHTML = entries.slice(0, 8).map(([key, count]) => `
+      <div class="bar-row">
+        <div class="bar-row-head">
+          <span class="name">${nameMap[key] || key}</span>
+          <span class="count">${count}</span>
+        </div>
+        <div class="bar-track"><div class="bar-fill" style="width: ${Math.max(6, (count / max) * 100)}%"></div></div>
+      </div>`).join('');
+  }
+
+  function renderGuestTable(guests) {
+    const el = document.getElementById('guestTable');
+    if (!guests.length) {
+      el.innerHTML = '<div class="list-empty">No guest activity yet — this fills in as guests start chatting.</div>';
+      return;
+    }
+    const rows = guests.map(g => `
+      <tr>
+        <td class="session-id">${g.guestSession.slice(0, 8)}…</td>
+        <td>${g.primaryLanguage ? `<span class="lang-tag">${g.primaryLanguage}</span>` : '—'}</td>
+        <td style="text-transform: capitalize;">${INTEREST_NAMES[g.topInterest] || g.topInterest || '—'}</td>
+        <td>${g.messageCount}</td>
+        <td>${g.conversationCount > 1 ? `${g.conversationCount} visits` : '1 visit'}</td>
+        <td>${new Date(g.lastSeen).toLocaleDateString([], {month: 'short', day: 'numeric'})}</td>
+      </tr>`).join('');
+    el.innerHTML = `
+      <table class="guest-table">
+        <thead><tr><th>Guest</th><th>Language</th><th>Top interest</th><th>Messages</th><th>Visits</th><th>Last seen</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
   }
 
   // ---- Settings ----

@@ -6,6 +6,7 @@ const { loadHotel } = require('../middleware/auth');
 const { resolveTieredReply } = require('../services/resolver');
 const groq = require('../services/groq');
 const translate = require('../services/translate');
+const guestProfile = require('../services/guestProfile');
 const eleven = require('../services/elevenlabs');
 const audioCache = require('../services/audioCache');
 const { getPlan } = require('../services/plans');
@@ -19,13 +20,13 @@ async function ensureConversation(hotelId, sessionId, channel = 'web') {
     'SELECT id FROM conversations WHERE hotel_id = $1 AND guest_session = $2 AND status = \'open\'',
     [hotelId, sessionId]
   );
-  if (rows[0]) return rows[0].id;
+  if (rows[0]) return { id: rows[0].id, isNew: false };
   const id = nanoid(12);
   await query(
     'INSERT INTO conversations (id, hotel_id, guest_session, channel) VALUES ($1, $2, $3, $4)',
     [id, hotelId, sessionId, channel]
   );
-  return id;
+  return { id, isNew: true };
 }
 
 // POST /message — text message from guest
@@ -35,12 +36,18 @@ router.post('/message', loadHotel, async (req, res) => {
   const session = sessionId || nanoid(12);
 
   try {
-    const conversationId = await ensureConversation(req.hotel.id, session, channel);
+    const { id: conversationId, isNew } = await ensureConversation(req.hotel.id, session, channel);
     const result = await resolveTieredReply({
       hotel: req.hotel,
       conversationId,
       guestMessage,
       guestLanguage,
+    });
+    // Fire-and-forget-ish: awaited but wrapped in try/catch inside the service
+    // itself, so a profile-tracking hiccup never breaks the guest's reply.
+    await guestProfile.recordInteraction({
+      hotelId: req.hotel.id, sessionId: session,
+      language: result.detectedLanguage, tier: result.tier, isNewConversation: isNew,
     });
     res.json({
       sessionId: session,
@@ -68,12 +75,16 @@ router.post('/voice-message', upload.single('audio'), loadHotel, async (req, res
     const { transcript, detectedLanguage } = await groq.transcribe(req.file.buffer, req.file.originalname || 'voice.webm');
 
     // 2. Run the transcript through the same tiered logic as text
-    const conversationId = await ensureConversation(req.hotel.id, session, channel);
+    const { id: conversationId, isNew } = await ensureConversation(req.hotel.id, session, channel);
     const result = await resolveTieredReply({
       hotel: req.hotel,
       conversationId,
       guestMessage: transcript,
       guestLanguage: detectedLanguage,
+    });
+    await guestProfile.recordInteraction({
+      hotelId: req.hotel.id, sessionId: session,
+      language: result.detectedLanguage, tier: result.tier, isNewConversation: isNew,
     });
 
     const response = {
@@ -150,7 +161,7 @@ router.get('/conversation-history', loadHotel, async (req, res) => {
 
 // POST /itinerary — interests in, day plan out
 router.post('/itinerary', loadHotel, async (req, res) => {
-  const { interests, guestLanguage } = req.body;
+  const { interests, guestLanguage, sessionId } = req.body;
   if (!Array.isArray(interests) || !interests.length) {
     return res.status(400).json({ error: 'interests array required' });
   }
@@ -181,6 +192,11 @@ router.post('/itinerary', loadHotel, async (req, res) => {
                 || operators.find(o => o.category === 'safari');
     if (safari) activities.push({ ...safari, source: safari.partnered ? 'hotel_partner' : 'unvetted', isMultiDay: true });
   }
+
+  // Record which categories this guest asked about — this is the strongest
+  // behavioral signal for "what do our guests actually want to do", useful
+  // for deciding which local operators to partner with next.
+  await guestProfile.recordInterests({ hotelId: req.hotel.id, sessionId, interests });
 
   const response = { activities };
 

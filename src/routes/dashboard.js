@@ -2,6 +2,7 @@ const express = require('express');
 const { nanoid } = require('nanoid');
 const { query } = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
+const guestProfile = require('../services/guestProfile');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -180,6 +181,27 @@ router.get('/hotels/:hotelId/queue', async (req, res) => {
     counts: Object.fromEntries(recentRows.map(r => [r.tier, parseInt(r.count, 10)])),
     pendingCounts: Object.fromEntries(pendingRows.map(r => [r.tier, parseInt(r.count, 10)])),
   });
+});
+
+// GET /dashboard/hotels/:hotelId/insights — aggregate language/interest
+// patterns across every guest this property has talked to. Powers the
+// "Guest insights" dashboard tab.
+router.get('/hotels/:hotelId/insights', async (req, res) => {
+  const hotel = await ownedHotel(req.account.accountId, req.params.hotelId);
+  if (!hotel) return res.status(404).json({ error: 'not found' });
+  const insights = await guestProfile.getInsights(hotel.id);
+  res.json(insights);
+});
+
+// GET /dashboard/hotels/:hotelId/guests — individual guest profiles, most
+// recently active first. Each row is one anonymous guest session with their
+// primary language, top interest, and activity counts — not a name or any
+// PII, just the behavior pattern.
+router.get('/hotels/:hotelId/guests', async (req, res) => {
+  const hotel = await ownedHotel(req.account.accountId, req.params.hotelId);
+  if (!hotel) return res.status(404).json({ error: 'not found' });
+  const guests = await guestProfile.listGuests(hotel.id);
+  res.json({ guests });
 });
 
 // GET /dashboard/conversations/:conversationId/messages — full thread, ordered
