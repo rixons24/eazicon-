@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Ezicon — The AI Agent for Independent Hotels</title>
+<title>Ezicon | The AI Agent for Independent Hotels</title>
 <meta name="description" content="An AI concierge agent that translates, answers, and upsells for your hotel. No PMS required. Live the same day.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -472,7 +472,7 @@
 </head>
 <body>
 
-<div class="note-banner">Placeholder build, redesigned in the style you shared — swap name and copy once decided.</div>
+<div class="note-banner">Placeholder build, redesigned in the style you shared. Swap name and copy once decided.</div>
 
 <header>
   <div class="nav">
@@ -545,7 +545,7 @@
   <div class="section-head">
     <span class="section-tag">How it works</span>
     <h2>From guest message to resolved, in five steps.</h2>
-    <p>Every conversation runs through the same flow — nothing gets promised to a guest that staff hasn't seen.</p>
+    <p>Every conversation runs through the same flow. Nothing gets promised to a guest that staff hasn't seen.</p>
   </div>
 
   <div class="timeline" id="timeline">
@@ -619,7 +619,7 @@
     <div class="feature-copy">
       <span class="tag">Translation, both ways</span>
       <h3>Speaks their language, shows you yours</h3>
-      <p>A guest writes in Polish, Chinese, Arabic — whatever they're comfortable in. Staff sees it in English. The reply goes back translated, in text or, on premium, spoken aloud in the guest's own voice.</p>
+      <p>A guest writes in Polish, Chinese, Arabic, whatever they're comfortable in. Staff sees it in English. The reply goes back translated, in text or, on premium, spoken aloud in the guest's own voice.</p>
     </div>
     <div class="feature-visual">
       <div class="mini-row"><span>春の朝食は何時ですか？</span></div>
@@ -632,7 +632,7 @@
     <div class="feature-copy">
       <span class="tag">Tiered response</span>
       <h3>Nothing gets promised without a human seeing it first</h3>
-      <p>Routine questions are answered instantly. Anything guest-specific — upgrades, bookings, requests — gets drafted by the agent and approved by staff. Complaints skip the agent entirely and go straight to a person.</p>
+      <p>Routine questions are answered instantly. Anything guest-specific, upgrades, bookings, requests, gets drafted by the agent and approved by staff. Complaints skip the agent entirely and go straight to a person.</p>
     </div>
     <div class="feature-visual">
       <div class="mini-row"><span class="tier-pill tier-auto">Auto</span> Checkout time, wifi, hours</div>
@@ -753,7 +753,7 @@
         <span class="faq-q">What if I can't edit my own website?</span>
         <span class="faq-icon"><i class="ti ti-plus" aria-hidden="true"></i></span>
       </button>
-      <div class="faq-body"><p class="faq-a">You don't need to. Use a QR code or a branded link instead — both work without touching your site's code at all.</p></div>
+      <div class="faq-body"><p class="faq-a">You don't need to. Use a QR code or a branded link instead, both work without touching your site's code at all.</p></div>
     </div>
     <div class="faq-item">
       <button class="faq-trigger" onclick="toggleFaq(this)">
@@ -1070,7 +1070,7 @@
       removeTypingIndicator();
 
       if (!res.ok) {
-        addAgentMessage("Sorry, the demo backend is having trouble right now — try again in a moment.", 'urgent');
+        addAgentMessage("Sorry, the demo backend is having trouble right now. Try again in a moment.", 'urgent');
         return;
       }
       const data = await res.json();
@@ -1095,7 +1095,7 @@
       addAgentMessage(englishText, data.tier, translatedForGuest);
     } catch (err) {
       removeTypingIndicator();
-      addAgentMessage("Couldn't reach the concierge — check your connection and try again.", 'urgent');
+      addAgentMessage("Couldn't reach the concierge. Check your connection and try again.", 'urgent');
     }
   }
 

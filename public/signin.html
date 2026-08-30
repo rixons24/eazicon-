@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Sign in — Ezicon</title>
+<title>Sign in | Ezicon</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -157,11 +157,11 @@
       localStorage.setItem('ezicon_token', data.token);
       localStorage.setItem('ezicon_email', email);
       status.className = 'status-line ok';
-      status.textContent = 'Signed in — redirecting...';
+      status.textContent = 'Signed in, redirecting...';
       setTimeout(() => { window.location.href = 'dashboard'; }, 500);
     } catch (err) {
       status.className = 'status-line err';
-      status.textContent = "Couldn't reach the server — check your connection.";
+      status.textContent = "Couldn't reach the server. Check your connection.";
       btn.disabled = false;
       btn.textContent = 'Sign in';
     }

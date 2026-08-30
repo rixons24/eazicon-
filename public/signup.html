@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Start free — Ezicon</title>
+<title>Start free | Ezicon</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/2.44.0/iconfont/tabler-icons.min.css">
@@ -711,13 +711,13 @@
       localStorage.setItem('ezicon_chat_url', data.chatUrl);
 
       status.style.color = 'var(--teal)';
-      status.textContent = 'Account created — redirecting...';
+      status.textContent = 'Account created, redirecting...';
       // Onboarding wizard doesn't exist yet — for now, redirect to a placeholder
       // that will become the setup flow. See the roadmap in the README.
       setTimeout(() => { window.location.href = 'onboarding.html'; }, 800);
     } catch (err) {
       status.style.color = 'var(--text-danger, #b0392f)';
-      status.textContent = "Couldn't reach the server — check your connection.";
+      status.textContent = "Couldn't reach the server. Check your connection.";
       btn.disabled = false;
       btn.textContent = 'Create account and continue';
     }

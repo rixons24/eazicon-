@@ -1367,7 +1367,7 @@
     const file = event.target.files[0];
     if (!file) return;
     if (file.size > 500 * 1024) {
-      if (!confirm(`This image is ${Math.round(file.size / 1024)}KB — quite large to store inline. Continue anyway? Consider hosting it externally and pasting a URL instead for better performance.`)) {
+      if (!confirm(`This image is ${Math.round(file.size / 1024)}KB, quite large to store inline. Continue anyway? Consider hosting it externally and pasting a URL instead for better performance.`)) {
         event.target.value = '';
         return;
       }
