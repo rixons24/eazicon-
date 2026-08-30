@@ -18,6 +18,41 @@ router.get('/hotels', async (req, res) => {
   res.json({ hotels: rows });
 });
 
+// GET /dashboard/fetch-brand-color?url=... — best-effort brand color pull.
+// Fetches the given page's HTML and looks for a declared <meta name="theme-color">.
+// This is deliberately simple: extracting a "dominant color" from a logo image
+// or full CSS analysis would need an image-processing library and much more
+// surface area for something that's a nice-to-have, not a core feature. Many
+// sites don't declare a theme-color at all, in which case we say so plainly
+// rather than guessing — manual color selection always remains available.
+router.get('/fetch-brand-color', async (req, res) => {
+  const targetUrl = req.query.url;
+  if (!targetUrl) return res.status(400).json({ error: 'url required' });
+
+  let normalizedUrl = targetUrl;
+  if (!/^https?:\/\//i.test(normalizedUrl)) normalizedUrl = `https://${normalizedUrl}`;
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 6000);
+    const pageRes = await fetch(normalizedUrl, {
+      signal: controller.signal,
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; EziconBrandFetch/1.0)' },
+    });
+    clearTimeout(timeout);
+    if (!pageRes.ok) return res.json({ color: null, reason: 'site returned an error' });
+
+    const html = await pageRes.text();
+    const themeMatch = html.match(/<meta[^>]+name=["']theme-color["'][^>]+content=["'](#[0-9a-fA-F]{3,6})["']/i)
+      || html.match(/<meta[^>]+content=["'](#[0-9a-fA-F]{3,6})["'][^>]+name=["']theme-color["']/i);
+    if (themeMatch) return res.json({ color: themeMatch[1] });
+
+    res.json({ color: null, reason: 'no theme-color meta tag found' });
+  } catch (e) {
+    res.json({ color: null, reason: 'could not fetch that site' });
+  }
+});
+
 // PATCH /dashboard/hotels/:hotelId — update branding, plan, voice toggle, etc.
 router.patch('/hotels/:hotelId', async (req, res) => {
   const hotel = await ownedHotel(req.account.accountId, req.params.hotelId);
@@ -173,16 +208,36 @@ router.post('/messages/:messageId/approve', async (req, res) => {
 });
 
 router.post('/messages/:messageId/dismiss', async (req, res) => {
-  await query(
+  const result = await query(
     `UPDATE messages SET approval_status = 'dismissed'
      WHERE id = $1 AND conversation_id IN (
        SELECT c.id FROM conversations c
        JOIN hotels h ON h.id = c.hotel_id
        WHERE h.account_id = $2
-     )`,
+     )
+     RETURNING id`,
     [req.params.messageId, req.account.accountId]
   );
+  if (!result.rows.length) return res.status(404).json({ error: 'not found' });
   res.json({ ok: true });
+});
+
+// POST /dashboard/messages/bulk-dismiss — dismiss several queue items in one
+// request, backing the dashboard's "select all" + multi-dismiss control.
+router.post('/messages/bulk-dismiss', async (req, res) => {
+  const { ids } = req.body;
+  if (!Array.isArray(ids) || !ids.length) return res.status(400).json({ error: 'ids array required' });
+  const result = await query(
+    `UPDATE messages SET approval_status = 'dismissed'
+     WHERE id = ANY($1::text[]) AND conversation_id IN (
+       SELECT c.id FROM conversations c
+       JOIN hotels h ON h.id = c.hotel_id
+       WHERE h.account_id = $2
+     )
+     RETURNING id`,
+    [ids, req.account.accountId]
+  );
+  res.json({ ok: true, dismissed: result.rows.length });
 });
 
 module.exports = router;

@@ -71,11 +71,19 @@ async function loadKB(hotelId) {
 // Persists both messages with full bilingual context: the guest row carries
 // their original text AND its English translation; the agent row carries the
 // English version staff would recognize AND whatever language the guest saw.
+//
+// approval_status is set to 'pending' for both needs_approval AND urgent tiers
+// — urgent items don't need a draft approved, but they DO need a human to
+// mark them handled, and giving them the same pending/dismissed lifecycle is
+// what lets "dismiss" actually remove them from the queue. Without this, an
+// urgent item has no status to change and reappears on every refresh
+// regardless of what staff do with it.
 async function persistMessages({ conversationId, guestMessage, guestMessageEnglish, tier, staffDraft, agentReplyOriginalLang, agentReplyEnglish }) {
+  const needsStatus = tier === 'needs_approval' || tier === 'urgent';
   await query(
     `INSERT INTO messages (id, conversation_id, role, content_original, content_english, tier, approval_status, approval_draft, created_at)
      VALUES ($1, $2, 'guest', $3, $4, $5, $6, $7, NOW())`,
-    [nanoid(12), conversationId, guestMessage, guestMessageEnglish || null, tier, tier === 'needs_approval' ? 'pending' : null, staffDraft || null]
+    [nanoid(12), conversationId, guestMessage, guestMessageEnglish || null, tier, needsStatus ? 'pending' : null, staffDraft || null]
   );
   await query(
     `INSERT INTO messages (id, conversation_id, role, content_original, content_english, tier, created_at)

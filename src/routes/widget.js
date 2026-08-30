@@ -5,6 +5,7 @@ const { query } = require('../db/pool');
 const { loadHotel } = require('../middleware/auth');
 const { resolveTieredReply } = require('../services/resolver');
 const groq = require('../services/groq');
+const translate = require('../services/translate');
 const eleven = require('../services/elevenlabs');
 const audioCache = require('../services/audioCache');
 const { getPlan } = require('../services/plans');
@@ -118,9 +119,38 @@ router.get('/branding', loadHotel, (req, res) => {
   res.json({ name: req.hotel.name, ...(req.hotel.branding || {}) });
 });
 
+// GET /conversation-history — restores a guest's chat on page reload. The
+// widget keeps sessionId in localStorage across reloads (so the backend
+// already treats it as one continuing conversation for tiering purposes),
+// but until now nothing ever fetched the actual prior messages back — a
+// refresh silently reset the visible chat to just the greeting even though
+// the conversation was still alive server-side. This closes that gap.
+//
+// No JWT auth here (guests aren't staff accounts) — access is scoped by
+// knowing hotelId + the random sessionId, the same trust model the rest of
+// the guest-facing flow already uses.
+router.get('/conversation-history', loadHotel, async (req, res) => {
+  const { sessionId } = req.query;
+  if (!sessionId) return res.status(400).json({ error: 'sessionId required' });
+
+  const { rows: convRows } = await query(
+    `SELECT id FROM conversations WHERE hotel_id = $1 AND guest_session = $2 ORDER BY created_at DESC LIMIT 1`,
+    [req.hotel.id, sessionId]
+  );
+  if (!convRows.length) return res.json({ messages: [] });
+
+  const { rows } = await query(
+    `SELECT role, content_original, tier, created_at FROM messages
+     WHERE conversation_id = $1 AND role IN ('guest', 'agent')
+     ORDER BY created_at ASC`,
+    [convRows[0].id]
+  );
+  res.json({ messages: rows });
+});
+
 // POST /itinerary — interests in, day plan out
 router.post('/itinerary', loadHotel, async (req, res) => {
-  const { interests } = req.body;
+  const { interests, guestLanguage } = req.body;
   if (!Array.isArray(interests) || !interests.length) {
     return res.status(400).json({ error: 'interests array required' });
   }
@@ -152,7 +182,20 @@ router.post('/itinerary', loadHotel, async (req, res) => {
     if (safari) activities.push({ ...safari, source: safari.partnered ? 'hotel_partner' : 'unvetted', isMultiDay: true });
   }
 
-  res.json({ activities });
+  const response = { activities };
+
+  // When nothing matched, translate the fallback message into whatever
+  // language the guest was already chatting in — the itinerary conversation
+  // up to this point (the "let's plan your day" prompt) was already in their
+  // language, so the empty-state shouldn't suddenly switch to English.
+  if (!activities.length) {
+    const EMPTY_MSG_EN = "No matching options on file yet for those interests — ask at the front desk and we'll help you plan something.";
+    response.emptyMessage = (!guestLanguage || guestLanguage === 'en')
+      ? EMPTY_MSG_EN
+      : await translate(EMPTY_MSG_EN, guestLanguage).catch(() => EMPTY_MSG_EN);
+  }
+
+  res.json(response);
 });
 
 module.exports = router;

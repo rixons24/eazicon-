@@ -171,34 +171,66 @@
   // guest visiting two different properties gets separate conversations.
   const SESSION_KEY = `ezicon_session_${hotelId}`;
   let sessionId = localStorage.getItem(SESSION_KEY);
+  let lastDetectedLanguage = 'en'; // updated from every /message response
 
   const messagesEl = document.getElementById('messages');
   const inputEl = document.getElementById('input');
   const sendBtn = document.getElementById('sendBtn');
 
-  // ---- Fetch branding (name, logo, tagline, agentName) so the widget presents
-  // as "this hotel's assistant" rather than a generic third-party chat box. ----
-  fetch(`${API_BASE}/branding?hotelId=${encodeURIComponent(hotelId)}`)
-    .then(r => r.ok ? r.json() : Promise.reject())
-    .then(brand => {
-      const hotelName = brand.name || 'this property';
-      const agentName = brand.agentName || `${hotelName} Assistant`;
-      document.getElementById('agentTitle').textContent = agentName;
-      document.getElementById('hotelSubtitle').textContent = `Ready to help · ${hotelName}`;
-      document.title = agentName;
-      document.getElementById('brandInitial').textContent = agentName.charAt(0).toUpperCase();
-      if (brand.logoUrl) {
-        const logoContainer = document.getElementById('brandLogo');
-        logoContainer.innerHTML = `<img src="${brand.logoUrl}" alt="${hotelName} logo">`;
-      }
-      if (brand.primaryColor) {
-        document.documentElement.style.setProperty('--navy', brand.primaryColor);
-      }
+  // ---- Bootstrap: load branding for styling, then either replay the guest's
+  // actual conversation history (if this session already has one) or show
+  // the fresh greeting. Previously this always showed the greeting and never
+  // checked for history, so a page refresh looked like the chat had reset
+  // even though the backend still had the whole conversation. ----
+  async function bootstrapChat() {
+    let brand = {};
+    try {
+      const r = await fetch(`${API_BASE}/branding?hotelId=${encodeURIComponent(hotelId)}`);
+      if (r.ok) brand = await r.json();
+    } catch { /* fall through with defaults below */ }
+
+    const hotelName = brand.name || 'this property';
+    const agentName = brand.agentName || `${hotelName} Assistant`;
+    document.getElementById('agentTitle').textContent = agentName;
+    document.getElementById('hotelSubtitle').textContent = `Ready to help · ${hotelName}`;
+    document.title = agentName;
+    document.getElementById('brandInitial').textContent = agentName.charAt(0).toUpperCase();
+    if (brand.logoUrl) {
+      document.getElementById('brandLogo').innerHTML = `<img src="${brand.logoUrl}" alt="${hotelName} logo">`;
+    }
+    if (brand.primaryColor) {
+      document.documentElement.style.setProperty('--navy', brand.primaryColor);
+    }
+
+    // Only bother checking for history if we actually have a saved session —
+    // a brand-new visitor has never had one, so skip the request entirely.
+    let history = [];
+    if (sessionId) {
+      try {
+        const r = await fetch(`${API_BASE}/conversation-history?hotelId=${encodeURIComponent(hotelId)}&sessionId=${encodeURIComponent(sessionId)}`);
+        if (r.ok) {
+          const data = await r.json();
+          history = data.messages || [];
+        }
+      } catch { /* treat as no history — greeting still shows below */ }
+    }
+
+    if (history.length) {
+      // Replay exactly what was said, in order. Note: if the guest was
+      // mid-way through the itinerary picker when they left, we don't
+      // reconstruct the interactive chips here — their prior selections
+      // aren't stored — we just show that the prompt happened as plain text.
+      // They can simply ask again to get a fresh picker.
+      history.forEach(m => {
+        if (m.role === 'guest') addGuestMessage(m.content_original);
+        else addAgentMessage(m.content_original, m.tier);
+      });
+    } else {
       addAgentMessage(`Hi! I'm ${agentName}. Ask me anything about your stay — in any language.`, null);
-    })
-    .catch(() => {
-      addAgentMessage("Hi! I'm the concierge. Ask me anything — in any language.", null);
-    });
+    }
+  }
+
+  bootstrapChat();
 
   // ---- Message rendering ----
   const tierLabel = { auto: 'Auto answered', needs_approval: 'Draft for staff', urgent: 'Urgent, escalated', limit_reached: 'Limit reached', itinerary: 'Trip planning' };
@@ -275,6 +307,7 @@
         sessionId = data.sessionId;
         localStorage.setItem(SESSION_KEY, sessionId);
       }
+      if (data.detectedLanguage) lastDetectedLanguage = data.detectedLanguage;
       // Widget shows the guest-facing reply directly (already in their language
       // from the backend). No English/translation split needed here — that
       // split is a marketing-demo feature on the landing page.
@@ -339,21 +372,22 @@
         const res = await fetch(`${API_BASE}/itinerary`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ hotelId, interests: Array.from(selected) }),
+          body: JSON.stringify({ hotelId, interests: Array.from(selected), guestLanguage: lastDetectedLanguage }),
         });
         const data = await res.json();
-        renderItineraryPlan(data.activities || []);
+        renderItineraryPlan(data.activities || [], data.emptyMessage);
       } catch (e) {
         renderItineraryPlan([]);
       }
     });
   }
 
-  function renderItineraryPlan(activities) {
+  function renderItineraryPlan(activities, emptyMessage) {
     const card = document.createElement('div');
     card.className = 'msg agent';
     if (!activities.length) {
-      card.innerHTML = `<div class="itinerary-card"><div class="itinerary-empty">No matching options on file yet for those interests — ask at the front desk and we'll help you plan something.</div></div>`;
+      const fallback = "No matching options on file yet for those interests — ask at the front desk and we'll help you plan something.";
+      card.innerHTML = `<div class="itinerary-card"><div class="itinerary-empty">${escapeHtml(emptyMessage || fallback)}</div></div>`;
     } else {
       const rows = activities.map(a => `
         <div class="itinerary-stop">
