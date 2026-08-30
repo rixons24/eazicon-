@@ -153,15 +153,33 @@ router.get('/hotels/:hotelId/queue', async (req, res) => {
      ORDER BY m.created_at DESC LIMIT 100`,
     [hotel.id]
   );
-  // Also send today's auto-handled count for the dashboard summary
-  const { rows: countRows } = await query(
+  // Two different counts, deliberately kept separate:
+  //   recentCounts   — how many of each tier arrived in the last 24h (a
+  //                    historical/throughput number, never goes down)
+  //   pendingCounts  — how many are CURRENTLY outstanding (approval_status
+  //                    = 'pending'), which is what "Needs attention" and
+  //                    "Urgent" on the dashboard should actually reflect —
+  //                    this is the number that should shrink as staff
+  //                    dismiss or approve items.
+  const { rows: recentRows } = await query(
     `SELECT tier, COUNT(*) FROM messages m
      JOIN conversations c ON c.id = m.conversation_id
      WHERE c.hotel_id = $1 AND m.created_at > NOW() - INTERVAL '24 hours'
      GROUP BY tier`,
     [hotel.id]
   );
-  res.json({ messages: rows, counts: Object.fromEntries(countRows.map(r => [r.tier, parseInt(r.count, 10)])) });
+  const { rows: pendingRows } = await query(
+    `SELECT tier, COUNT(*) FROM messages m
+     JOIN conversations c ON c.id = m.conversation_id
+     WHERE c.hotel_id = $1 AND m.approval_status = 'pending'
+     GROUP BY tier`,
+    [hotel.id]
+  );
+  res.json({
+    messages: rows,
+    counts: Object.fromEntries(recentRows.map(r => [r.tier, parseInt(r.count, 10)])),
+    pendingCounts: Object.fromEntries(pendingRows.map(r => [r.tier, parseInt(r.count, 10)])),
+  });
 });
 
 // GET /dashboard/conversations/:conversationId/messages — full thread, ordered

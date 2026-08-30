@@ -134,7 +134,9 @@
   @media (max-width: 640px) { .stats-grid { grid-template-columns: 1fr; } }
   .stat-card {
     background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px;
+    cursor: pointer; transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
   }
+  .stat-card:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(10,46,74,0.08); border-color: var(--border-strong); }
   .stat-card .label { font-size: 12px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; }
   .stat-card .value { font-size: 28px; font-weight: 700; margin-top: 6px; letter-spacing: -0.02em; }
   .stat-card.urgent .value { color: var(--danger); }
@@ -143,6 +145,16 @@
 
   /* ---- Message queue ---- */
   .bulk-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; padding: 0 2px; }
+  .queue-filter-chip {
+    display: inline-flex; align-items: center; gap: 8px; background: var(--bg-raised);
+    color: var(--navy); font-size: 12.5px; font-weight: 500; padding: 6px 10px 6px 12px;
+    border-radius: 100px; margin-bottom: 12px;
+  }
+  .queue-filter-chip button {
+    background: rgba(10,46,74,0.1); border: none; border-radius: 50%; width: 18px; height: 18px;
+    color: var(--navy); cursor: pointer; font-size: 13px; line-height: 1; display: flex; align-items: center; justify-content: center;
+  }
+  .queue-filter-chip button:hover { background: rgba(10,46,74,0.2); }
   .msg-list { display: flex; flex-direction: column; gap: 10px; }
   .msg-item {
     background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px;
@@ -231,18 +243,22 @@
     border-radius: 14px; overflow: hidden; border: 1px solid var(--border);
     box-shadow: 0 8px 24px rgba(10,46,74,0.08); background: #fff;
   }
+  /* This mirrors widget-ui.html's actual header exactly: a plain white bar
+     with a bottom border — only the small logo tile itself is colored. The
+     first version of this preview colored the whole bar with primaryColor,
+     which doesn't match what guests actually see in the real widget. */
   .preview-header {
     display: flex; align-items: center; gap: 10px; padding: 12px 14px;
-    background: #0a2e4a; transition: background 0.2s ease;
+    background: #fff; border-bottom: 1px solid rgba(10,46,74,0.08);
   }
   .preview-logo {
-    width: 30px; height: 30px; border-radius: 8px; background: rgba(255,255,255,0.15);
-    display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700;
-    font-size: 13px; flex-shrink: 0; overflow: hidden; transition: background 0.2s ease;
+    width: 30px; height: 30px; border-radius: 8px; background: #0a2e4a;
+    display: flex; align-items: center; justify-content: center; color: #a6f5c0; font-weight: 700;
+    font-size: 13px; flex-shrink: 0; overflow: hidden; transition: background 0.2s ease, color 0.2s ease;
   }
   .preview-logo img { width: 100%; height: 100%; object-fit: cover; }
-  .preview-title { font-size: 13px; font-weight: 600; color: #fff; }
-  .preview-subtitle { font-size: 11px; color: rgba(255,255,255,0.75); margin-top: 1px; }
+  .preview-title { font-size: 13px; font-weight: 600; color: #0a2e4a; }
+  .preview-subtitle { font-size: 11px; color: #5fc48a; margin-top: 1px; transition: color 0.2s ease; }
   .preview-body { padding: 14px; background: #f2f6f8; min-height: 90px; }
   .preview-bubble {
     background: #fff; border-radius: 10px; padding: 9px 12px; font-size: 12.5px;
@@ -305,9 +321,9 @@
         <button class="btn-ghost" onclick="loadQueue()">↻ Refresh</button>
       </div>
       <div class="stats-grid" id="statsGrid">
-        <div class="stat-card auto"><div class="label">Auto answered</div><div class="value" id="stat-auto">—</div></div>
-        <div class="stat-card approve"><div class="label">Needs attention</div><div class="value" id="stat-approve">—</div></div>
-        <div class="stat-card urgent"><div class="label">Urgent</div><div class="value" id="stat-urgent">—</div></div>
+        <div class="stat-card auto" onclick="filterQueueByTier('auto')"><div class="label">Auto answered</div><div class="value" id="stat-auto">—</div></div>
+        <div class="stat-card approve" onclick="filterQueueByTier('needs_approval')"><div class="label">Needs attention</div><div class="value" id="stat-approve">—</div></div>
+        <div class="stat-card urgent" onclick="filterQueueByTier('urgent')"><div class="label">Urgent</div><div class="value" id="stat-urgent">—</div></div>
       </div>
       <div id="overviewRecent"></div>
     </section>
@@ -320,6 +336,10 @@
           <p>Drafts awaiting your review and urgent items needing attention</p>
         </div>
         <button class="btn-ghost" onclick="loadQueue()">↻ Refresh</button>
+      </div>
+      <div class="queue-filter-chip" id="queueFilterChip" style="display: none;">
+        Showing: <span></span>
+        <button onclick="clearQueueFilter()" aria-label="Clear filter">×</button>
       </div>
       <div class="bulk-bar">
         <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-dim); cursor: pointer;">
@@ -653,40 +673,83 @@
   document.querySelectorAll('.tab-btn').forEach(b => b.addEventListener('click', () => switchTab(b.dataset.tab)));
 
   // ---- Queue + overview ----
+  let latestQueueMessages = []; // cached from the last load, reused by the clickable stat-card filters below
   async function loadQueue() {
     if (!CURRENT_HOTEL_ID) return;
     try {
       const res = await api(`/dashboard/hotels/${CURRENT_HOTEL_ID}/queue`);
       const data = await res.json();
-      // Update stat cards
-      const counts = data.counts || {};
-      document.getElementById('stat-auto').textContent = counts.auto || 0;
-      document.getElementById('stat-approve').textContent = counts.needs_approval || 0;
-      document.getElementById('stat-urgent').textContent = counts.urgent || 0;
-      // Queue badge count for pending approvals + urgent
-      const badgeCount = (counts.needs_approval || 0) + (counts.urgent || 0);
+      latestQueueMessages = data.messages || [];
+      // "Auto answered" is a throughput number (how many arrived today) since
+      // auto-tier messages have no pending/resolved lifecycle to track.
+      // "Needs attention" and "Urgent" use the OUTSTANDING count instead —
+      // this is what actually shrinks as staff dismiss or approve items,
+      // rather than a historical arrival count that never moves.
+      const recent = data.counts || {};
+      const pending = data.pendingCounts || {};
+      document.getElementById('stat-auto').textContent = recent.auto || 0;
+      document.getElementById('stat-approve').textContent = pending.needs_approval || 0;
+      document.getElementById('stat-urgent').textContent = pending.urgent || 0;
+      const badgeCount = (pending.needs_approval || 0) + (pending.urgent || 0);
       const badge = document.getElementById('queueBadge');
       badge.textContent = badgeCount;
       badge.style.display = badgeCount ? 'inline-block' : 'none';
-      renderQueue(data.messages || []);
-      renderOverviewRecent(data.messages || []);
+      renderQueue(latestQueueMessages);
+      renderOverviewRecent(latestQueueMessages);
     } catch (e) { console.error(e); }
+  }
+
+  // Clicking a stat card jumps to the Message queue tab, filtered to that
+  // category. "Auto answered" has no pending/actionable state, so it shows
+  // recent auto-tier messages as read-only reference rather than an
+  // actionable queue — everything else stays real and clickable through.
+  let queueFilterTier = null;
+  function filterQueueByTier(tier) {
+    queueFilterTier = tier;
+    switchTab('queue');
+    renderQueue(latestQueueMessages);
+  }
+  function clearQueueFilter() {
+    queueFilterTier = null;
+    renderQueue(latestQueueMessages);
   }
 
   function renderQueue(messages) {
     const list = document.getElementById('queueList');
-    // approval_status is the single source of truth now — both needs_approval
-    // and urgent tiers get 'pending' on creation, so this correctly reflects
-    // what's actually been dismissed/approved rather than re-showing urgent
-    // items forever regardless of what staff do with them.
-    const pending = messages.filter(m => m.approval_status === 'pending');
+    const filterChip = document.getElementById('queueFilterChip');
+
+    let shown;
+    let emptyMsg = 'No messages awaiting attention 🎉<br><span style="font-size: 12.5px; opacity: 0.7;">Auto-answered messages appear in the Overview tab</span>';
+    let compact = false;
+
+    if (queueFilterTier === 'auto') {
+      // Auto-tier has no pending/resolved lifecycle — this is a read-only
+      // "here's what got answered automatically" reference view, not an
+      // actionable queue, so no checkboxes or approve/dismiss buttons.
+      shown = messages.filter(m => m.tier === 'auto').slice(0, 30);
+      emptyMsg = 'No auto-answered messages yet.';
+      compact = true;
+    } else if (queueFilterTier) {
+      shown = messages.filter(m => m.approval_status === 'pending' && m.tier === queueFilterTier);
+    } else {
+      // approval_status is the single source of truth — both needs_approval
+      // and urgent tiers get 'pending' on creation, so this correctly reflects
+      // what's actually been dismissed/approved rather than re-showing urgent
+      // items forever regardless of what staff do with them.
+      shown = messages.filter(m => m.approval_status === 'pending');
+    }
+
+    const chipLabel = { needs_approval: 'Needs attention', urgent: 'Urgent', auto: 'Auto answered' }[queueFilterTier];
+    filterChip.style.display = queueFilterTier ? 'inline-flex' : 'none';
+    if (queueFilterTier) filterChip.querySelector('span').textContent = chipLabel;
+
     document.getElementById('selectAllQueue').checked = false;
     updateBulkBar();
-    if (!pending.length) {
-      list.innerHTML = '<div class="list-empty">No messages awaiting attention 🎉<br><span style="font-size: 12.5px; opacity: 0.7;">Auto-answered messages appear in the Overview tab</span></div>';
+    if (!shown.length) {
+      list.innerHTML = `<div class="list-empty">${emptyMsg}</div>`;
       return;
     }
-    list.innerHTML = pending.map(m => renderMessage(m)).join('');
+    list.innerHTML = shown.map(m => renderMessage(m, compact)).join('');
   }
 
   function renderOverviewRecent(messages) {
@@ -1015,17 +1078,23 @@
     const name = document.getElementById('setName').value.trim() || 'Your Hotel';
     const agentName = document.getElementById('setAgentName').value.trim() || `${name} Assistant`;
     const primary = document.getElementById('setColor').value;
+    const accent = document.getElementById('setAccent').value;
     const logoUrl = uploadedLogoDataUrl || document.getElementById('setLogo').value.trim();
 
-    document.getElementById('previewHeader').style.background = primary;
+    // Matches the real widget exactly: header bar stays white, only the small
+    // logo tile is colored (navy/primary background, mint/accent text), and
+    // the "Ready to help" line uses the accent color too.
     document.getElementById('previewTitle').textContent = agentName;
     document.getElementById('previewSubtitle').textContent = `Ready to help · ${name}`;
+    document.getElementById('previewSubtitle').style.color = accent;
 
     const logoEl = document.getElementById('previewLogo');
     if (logoUrl) {
       logoEl.innerHTML = `<img src="${logoUrl}" alt="logo">`;
     } else {
       logoEl.innerHTML = agentName.charAt(0).toUpperCase();
+      logoEl.style.background = primary;
+      logoEl.style.color = accent;
     }
   }
 

@@ -201,6 +201,10 @@
     if (brand.primaryColor) {
       document.documentElement.style.setProperty('--navy', brand.primaryColor);
     }
+    if (brand.accentColor) {
+      document.documentElement.style.setProperty('--mint', brand.accentColor);
+      document.documentElement.style.setProperty('--mint-deep', brand.accentColor);
+    }
 
     // Only bother checking for history if we actually have a saved session —
     // a brand-new visitor has never had one, so skip the request entirely.

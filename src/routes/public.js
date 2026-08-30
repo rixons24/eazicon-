@@ -26,7 +26,10 @@ router.get('/chat/:hotelId', loadHotel, (req, res) => {
 ${logo ? `<link rel="icon" href="${escapeAttr(logo)}">` : ''}
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
-  body { background: ${accent}; min-height: 100vh; display: flex; flex-direction: column; }
+  body {
+    background: linear-gradient(to top, ${accent} 0%, #ffffff 100%);
+    min-height: 100vh; display: flex; flex-direction: column;
+  }
   #brand-header {
     padding: 28px 20px 20px; text-align: center; background: ${primary}; color: white;
   }
