@@ -23,7 +23,8 @@
     --danger: #b0392f;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
+  html { height: 100%; }
+  body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 
   header {
     background: var(--navy); color: #fff; padding: 14px 24px;
@@ -155,6 +156,17 @@
     return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   }
 
+  // Same defense-in-depth as widget-ui.html: the classification prompt tells
+  // the LLM never to use markdown, but it doesn't always comply, so strip
+  // common artifacts rather than showing staff literal asterisks.
+  function stripMarkdown(text) {
+    return text
+      .replace(/\*\*(.*?)\*\*/g, '$1')
+      .replace(/\*(.*?)\*/g, '$1')
+      .replace(/^#{1,6}\s+/gm, '')
+      .replace(/^[-•]\s+/gm, '');
+  }
+
   async function loadThread() {
     const wrap = document.getElementById('threadWrap');
     try {
@@ -177,13 +189,13 @@
         const tierBadge = (m.role === 'guest' && m.tier && tierLabel[m.tier])
           ? `<div class="thread-tier ${m.tier}">${tierLabel[m.tier]}</div>` : '';
         const translation = (m.content_english && m.content_english !== m.content_original)
-          ? `<div class="thread-translation">&rarr; ${escapeHtml(m.content_english)}</div>` : '';
+          ? `<div class="thread-translation">&rarr; ${escapeHtml(stripMarkdown(m.content_english))}</div>` : '';
         const time = new Date(m.created_at).toLocaleString([], {month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'});
         return `
           <div class="thread-msg ${m.role}">
             <div class="thread-role">${roleLabel[m.role] || m.role}</div>
             ${tierBadge}
-            <div class="thread-bubble">${escapeHtml(m.content_original)}</div>
+            <div class="thread-bubble">${escapeHtml(stripMarkdown(m.content_original))}</div>
             ${translation}
             <div class="thread-time">${time}</div>
           </div>`;

@@ -234,7 +234,18 @@ async function resolveTieredReply({ hotel, conversationId, guestMessage, guestLa
     ...(model ? { model } : {}),
   });
 
-  const finalLang = guestLanguage || result.detectedLanguage || 'en';
+  // The LLM's self-reported detectedLanguage isn't perfectly reliable,
+  // especially on short messages — and since translation depends entirely
+  // on this value, a mislabeled "en" silently skips translation even when
+  // the tier classification itself was correct. The script guess is a hard,
+  // deterministic signal for non-Latin scripts (Arabic characters can never
+  // be English), so it wins whenever the two disagree. This is what was
+  // causing Arabic/Chinese/etc. messages to occasionally show no English
+  // translation in the dashboard despite everything else working.
+  let finalLang = guestLanguage || result.detectedLanguage || 'en';
+  const scriptCheck = guessScriptLanguage(guestMessage);
+  if (scriptCheck && scriptCheck !== finalLang) finalLang = scriptCheck;
+
   const gmEn = await toEnglish(guestMessage, finalLang);
 
   if (result.tier === 'urgent') {

@@ -74,6 +74,19 @@ router.patch('/hotels/:hotelId', async (req, res) => {
   res.json({ ok: true });
 });
 
+// POST /dashboard/hotels/:hotelId/clear-data — wipes all conversations
+// (messages cascade via FK), guest profiles, and resets the usage counter
+// for this hotel. Meant for restarting testing with a clean slate, not for
+// production use once real guests are chatting — there's no undo.
+router.post('/hotels/:hotelId/clear-data', async (req, res) => {
+  const hotel = await ownedHotel(req.account.accountId, req.params.hotelId);
+  if (!hotel) return res.status(404).json({ error: 'not found' });
+  await query('DELETE FROM conversations WHERE hotel_id = $1', [hotel.id]);
+  await query('DELETE FROM guest_profiles WHERE hotel_id = $1', [hotel.id]);
+  await query('UPDATE hotels SET usage_messages_month = 0, usage_reset_at = NOW() WHERE id = $1', [hotel.id]);
+  res.json({ ok: true });
+});
+
 // GET /dashboard/hotels/:hotelId/knowledge
 router.get('/hotels/:hotelId/knowledge', async (req, res) => {
   const hotel = await ownedHotel(req.account.accountId, req.params.hotelId);

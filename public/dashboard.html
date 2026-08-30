@@ -194,7 +194,12 @@
     border-radius: 10px;
   }
   .edit-drawer.open { display: block; }
-  .edit-drawer textarea { min-height: 90px; margin-bottom: 10px; }
+  .edit-drawer textarea {
+    width: 100%; min-height: 110px; margin-bottom: 10px; box-sizing: border-box;
+    padding: 10px 12px; font-size: 13.5px; font-family: inherit; color: var(--text);
+    border: 1px solid var(--border-strong); border-radius: 8px; background: var(--bg); resize: vertical;
+  }
+  .edit-drawer textarea:focus { outline: none; border-color: var(--teal); }
 
   /* ---- Full conversation thread view ---- */
   .thread-view { display: none; margin-top: 10px; border-top: 1px dashed var(--border); padding-top: 10px; }
@@ -269,6 +274,14 @@
   @media (max-width: 560px) { .form-row { grid-template-columns: 1fr; } }
   .checkbox-row { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; font-size: 13.5px; color: var(--text-dim); }
   .checkbox-row input[type="checkbox"] { width: auto; }
+
+  /* ---- Danger zone ---- */
+  .danger-zone {
+    background: rgba(176,57,47,0.04); border: 1px solid rgba(176,57,47,0.25);
+    border-radius: 12px; padding: 20px; margin-top: 20px;
+  }
+  .danger-zone h3 { font-size: 15px; font-weight: 600; color: var(--danger); margin-bottom: 8px; }
+  .danger-zone p { font-size: 13px; color: var(--text-dim); margin-bottom: 14px; line-height: 1.5; }
 
   /* ---- Settings: two-column layout with live preview ---- */
   .settings-grid { display: grid; grid-template-columns: 1fr 280px; gap: 20px; align-items: start; }
@@ -654,6 +667,13 @@
           Your standalone chat page: <a id="chatLink" href="#" target="_blank" style="color: var(--teal);">Loading...</a>
         </p>
       </div>
+
+      <div class="danger-zone">
+        <h3>Danger zone</h3>
+        <p>Permanently deletes every conversation, message, and guest profile for this property, and resets the usage counter. Meant for clearing out test data before going live, not for use once real guests are chatting. This cannot be undone.</p>
+        <button class="btn-danger" onclick="clearHotelData()">Clear all guest chat data</button>
+        <p class="status-line" id="clearDataStatus"></p>
+      </div>
     </section>
   </main>
 </div>
@@ -887,11 +907,11 @@
     // it differs — this is what lets a manager sanity-check the concierge's
     // read of the message even if the tier decision looks off.
     const translationLine = (m.content_english && m.content_english !== m.content_original)
-      ? `<div class="msg-translation">→ ${escapeHtml(m.content_english)}</div>` : '';
+      ? `<div class="msg-translation">→ ${escapeHtml(stripMarkdown(m.content_english))}</div>` : '';
     const draftBlock = m.approval_draft ? `
       <div class="msg-draft">
         <div class="msg-draft-label">Suggested reply</div>
-        ${escapeHtml(m.approval_draft)}
+        ${escapeHtml(stripMarkdown(m.approval_draft))}
       </div>` : '';
     // Urgent and human-requested items already sent their acknowledgment to
     // the guest automatically — there's no draft to approve or edit, just a
@@ -906,7 +926,7 @@
         <button class="btn-danger" onclick="dismissMessage('${m.id}')">Dismiss</button>
       </div>
       <div class="edit-drawer" id="edit-${m.id}">
-        <textarea id="edit-text-${m.id}">${escapeHtml(m.approval_draft || '')}</textarea>
+        <textarea id="edit-text-${m.id}">${escapeHtml(stripMarkdown(m.approval_draft || ''))}</textarea>
         <button class="btn-primary" style="width: auto; padding: 8px 16px; font-size: 13px;" onclick="approveMessage('${m.id}', true)">Send edited reply</button>
       </div>` : '';
     // Opens the conversation in its own page/window rather than expanding
@@ -926,7 +946,7 @@
           ${m.guest_language ? `<span class="msg-lang">${m.guest_language}</span>` : ''}
           <span>${timeStr}</span>
         </div>
-        <div class="msg-guest">${escapeHtml(m.content_original)}</div>
+        <div class="msg-guest">${escapeHtml(stripMarkdown(m.content_original))}</div>
         ${translationLine}
         ${!compact ? draftBlock : ''}
         ${!compact ? actions : ''}
@@ -1368,9 +1388,41 @@
     }
   }
 
+  // Wipes all conversations/messages/guest profiles for the current hotel.
+  // Double confirmation since this is permanent and irreversible.
+  async function clearHotelData() {
+    if (!confirm(`Permanently delete ALL conversations and guest data for "${CURRENT_HOTEL.name}"? This cannot be undone.`)) return;
+    if (!confirm('Are you sure? This will erase every test conversation you have sent so far.')) return;
+    const status = document.getElementById('clearDataStatus');
+    status.className = 'status-line';
+    status.style.color = 'var(--text-dim)';
+    status.textContent = 'Clearing...';
+    try {
+      const res = await api(`/dashboard/hotels/${CURRENT_HOTEL_ID}/clear-data`, {method: 'POST'});
+      if (!res.ok) throw new Error('Clear failed');
+      status.className = 'status-line ok';
+      status.textContent = 'Cleared. You can start testing fresh.';
+      loadQueue();
+      setTimeout(() => status.textContent = '', 4000);
+    } catch (e) {
+      status.className = 'status-line err';
+      status.textContent = 'Failed to clear data: ' + e.message;
+    }
+  }
+
   // ---- Utility ----
   function escapeHtml(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  // Same defense-in-depth as widget-ui.html and conversation.html: the LLM
+  // is told never to use markdown but doesn't always comply.
+  function stripMarkdown(text) {
+    return String(text == null ? '' : text)
+      .replace(/\*\*(.*?)\*\*/g, '$1')
+      .replace(/\*(.*?)\*/g, '$1')
+      .replace(/^#{1,6}\s+/gm, '')
+      .replace(/^[-•]\s+/gm, '');
   }
 
   // ---- Init ----
